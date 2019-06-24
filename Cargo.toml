@@ -5,4 +5,4 @@ authors = ["Florian Amsallem <florian.amsallem@epita.fr>"]
 edition = "2018"
 
 [dependencies]
-clap = "2.33.0"
+clap = { version = "2.33.0", features = ["yaml", "suggestions", "color"] }
