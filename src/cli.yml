@@ -1,0 +1,28 @@
+name: my_git
+version: "0.1.0"
+author: Florian Amsallem <florian.amsallem@epita.fr>
+about: My own git implementation
+subcommands:
+    - init:
+        about: Create an empty MyGit repository or reinitialize an existing one
+        args:
+            - quiet:
+                long: quiet
+                short: q
+                help: Only print error and warning messages; all other output will be suppressed.
+    - add:
+        about: Add file contents to the index
+        args:
+            - PATH_SPEC:
+                help: Files to add content from.
+                required: true
+                multiple: true
+    - commit:
+        about: Record changes to the repository
+        args:
+            - msg:
+                help: Use the given <msg> as the commit message.
+                short: m
+                long: message
+                takes_value: true
+                required: true
