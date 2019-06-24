@@ -1,0 +1,8 @@
+[package]
+name = "my_git"
+version = "0.1.0"
+authors = ["Florian Amsallem <florian.amsallem@epita.fr>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.33.0"
