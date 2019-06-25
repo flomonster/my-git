@@ -2,8 +2,11 @@
 //!
 //! `my_git` is a simple implementation of the versionning tool git.
 use clap::App;
+use std::error::Error;
+mod init;
 
-/// This dispatch the main subcommand
+/// This dispatch the main subcommand and return an error if something went
+/// wrong
 ///
 /// # Arguments
 ///
@@ -12,14 +15,17 @@ use clap::App;
 /// # Panics
 ///
 /// When a valid subcommand is used but not handled.
-pub fn run(app: &mut App) {
+pub fn run(app: &mut App) -> Result<(), Box<dyn Error>> {
     let matches = app.clone().get_matches();
 
     match matches.subcommand() {
-        ("init", Some(_matches)) => println!("Init was matched"),
-        ("add", Some(_matches)) => println!("Add was matched"),
-        ("commit", Some(_matches)) => println!("Commit was matched"),
-        (_, None) => app.print_help().expect("An error occur printing the help"),
+        ("init", Some(matches)) => init::run(matches),
+        ("add", Some(_matches)) => Ok(()),
+        ("commit", Some(_matches)) => Ok(()),
+        (_, None) => match app.print_help() {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Box::new(e)),
+        },
         _ => panic!("The used subcommand is not handle"),
-    };
+    }
 }
