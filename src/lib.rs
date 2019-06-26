@@ -3,7 +3,9 @@
 //! `my_git` is a simple implementation of the versionning tool git.
 use clap::App;
 use std::error::Error;
+
 mod init;
+mod objects;
 
 /// This dispatch the main subcommand and return an error if something went
 /// wrong
