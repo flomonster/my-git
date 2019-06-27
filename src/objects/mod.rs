@@ -1,7 +1,11 @@
+pub use blob::Blob;
+pub use commit::Commit;
 use sha1::{Digest, Sha1};
+pub use tree::Tree;
 
-pub mod blob;
-pub mod tree;
+mod blob;
+mod commit;
+mod tree;
 
 type Hash = Digest;
 
@@ -18,9 +22,12 @@ pub trait Object {
 
 #[cfg(test)]
 mod tests {
-    use super::blob::Blob;
-    use super::tree::Tree;
+    use super::Blob;
+    use super::Tree;
     use super::*;
+    use chrono::offset::TimeZone;
+    use chrono::Local;
+    use commit::User;
     use std::str::FromStr;
 
     #[test]
@@ -75,6 +82,25 @@ mod tests {
         assert_eq!(
             tree.hash().to_string(),
             "c9d0390d36023a52e95ca89ea06bbb2be7ab58ec"
+        );
+    }
+
+    #[test]
+    fn commit_dump() {
+        let mut commit = Commit::new(
+            Hash::from_str("07f9cb6648d474785a4e08afe408633b1cf04d50").unwrap(),
+            vec![Hash::from_str("bed08c07a4fb5d3be29024eac3b7efd7d8729e46").unwrap()],
+            User::new(
+                String::from("Florian Amsallem"),
+                String::from("florian.amsallem@epita.fr"),
+            ),
+            Local.timestamp(1561665499, 0),
+            String::from("second: commit\n"),
+        );
+        println!("{}", std::str::from_utf8(&commit.dump()[..]).unwrap());
+        assert_eq!(
+            commit.hash().to_string(),
+            "3f07efedb395e8e29412149b5d596f163af24ad4"
         );
     }
 }

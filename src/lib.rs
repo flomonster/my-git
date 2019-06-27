@@ -24,10 +24,11 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn Error>> {
         ("init", Some(matches)) => init::run(matches),
         ("add", Some(_matches)) => Ok(()),
         ("commit", Some(_matches)) => Ok(()),
-        (_, None) => match app.print_help() {
-            Ok(_) => Ok(()),
-            Err(e) => Err(Box::new(e)),
-        },
+        (_, None) => {
+            app.print_help();
+            println!();
+            Ok(())
+        }
         _ => panic!("The used subcommand is not handle"),
     }
 }
