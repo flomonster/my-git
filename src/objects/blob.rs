@@ -1,5 +1,6 @@
 use crate::objects::Object;
 
+/// This object carry the content of a file.
 pub struct Blob {
     data: Vec<u8>,
 }

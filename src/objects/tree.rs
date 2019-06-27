@@ -9,6 +9,8 @@ pub enum TreeEntry {
     Directory(String, Hash),
 }
 
+/// This object carry trees and blobs. It represents the files in the
+/// repository.
 pub struct Tree {
     entries: Vec<TreeEntry>,
 }
