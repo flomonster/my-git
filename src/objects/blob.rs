@@ -20,6 +20,10 @@ impl Object for Blob {
         res.append(&mut self.data.clone());
         res
     }
+
+    fn from(data: Vec<u8>) -> Box<Blob> {
+        Box::new(Blob::new(data))
+    }
 }
 
 #[cfg(test)]

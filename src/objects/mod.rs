@@ -1,6 +1,8 @@
 pub use blob::Blob;
 pub use commit::Commit;
 use sha1::{Digest, Sha1};
+use std::fs;
+use std::path::PathBuf;
 pub use tree::Tree;
 
 mod blob;
@@ -14,6 +16,21 @@ pub trait Object {
     /// This function dump an object to his raw data
     fn dump(&self) -> Vec<u8>;
 
+    fn from(data: Vec<u8>) -> Box<Self>;
+
+    fn load(repo: &PathBuf, hash: Hash) -> Box<Self> {
+        // Compute the path to the object file
+        let mut objects_path = repo.join("objects");
+        objects_path.push(&hash.to_string()[..2]);
+        objects_path.push(&hash.to_string()[2..]);
+
+        // Read the file
+        let data = fs::read(objects_path).unwrap();
+
+        // Parse the data
+        Self::from(data)
+    }
+
     /// This function allow object to be hashed
     fn hash(&self) -> Hash {
         Sha1::from(self.dump()).digest()
@@ -25,6 +42,7 @@ mod tests {
     use super::Blob;
     use super::Tree;
     use super::*;
+    use crate::utils;
     use chrono::offset::TimeZone;
     use chrono::Local;
     use commit::User;
@@ -97,7 +115,6 @@ mod tests {
             Local.timestamp(1561665499, 0),
             String::from("second: commit\n"),
         );
-        println!("{}", std::str::from_utf8(&commit.dump()[..]).unwrap());
         assert_eq!(
             commit.hash().to_string(),
             "3f07efedb395e8e29412149b5d596f163af24ad4"
