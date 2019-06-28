@@ -6,6 +6,9 @@ subcommands:
     - init:
         about: Create an empty MyGit repository or reinitialize an existing one
         args:
+            - directory:
+                help: If provided the command is run inside it. If this directory does not exist, it will be created.
+                takes_value: true
             - quiet:
                 long: quiet
                 short: q

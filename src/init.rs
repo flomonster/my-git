@@ -12,7 +12,15 @@ use std::fs::DirBuilder;
 /// * `args` - The subcommand arguments
 pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     // Compute the path of the git folder
-    let git_path = env::current_dir()?.join(".my_git");
+    let repo_path = match args.value_of("directory") {
+        Some(path) => {
+            let mut p = std::path::PathBuf::new();
+            p.push(path);
+            p
+        }
+        None => env::current_dir()?,
+    };
+    let git_path = repo_path.join(".my_git");
     let reinitialized = git_path.exists();
 
     // Build dirs
