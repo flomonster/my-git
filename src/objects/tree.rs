@@ -70,6 +70,10 @@ impl Object for Tree {
         res.append(&mut data);
         res
     }
+
+    fn from(data: Vec<u8>) -> Box<Tree> {
+        Box::new(Tree::new())
+    }
 }
 
 #[cfg(test)]

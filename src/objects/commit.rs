@@ -1,8 +1,8 @@
 use crate::objects::Hash;
 use crate::objects::Object;
-use crate::objects::Tree;
 use chrono::offset::Local;
 use chrono::DateTime;
+use std::str::FromStr;
 
 /// This object represents a version. It contains the root of the tree and
 /// metadata about the author and committer.
@@ -82,6 +82,19 @@ impl Object for Commit {
         res.append(&mut header.into_bytes());
         res.append(&mut data);
         res
+    }
+
+    fn from(data: Vec<u8>) -> Box<Commit> {
+        Box::new(Commit::new(
+            Hash::from_str("e3095e3fb2e3cbc0dea81d961650feda7f6448f7").unwrap(),
+            vec![Hash::from_str("f8ebe55b90a19ab7e5dea5ec51390948109623e5").unwrap()],
+            User::new(
+                String::from("Florian Amsallem"),
+                String::from("florian.amsallem@epita.fr"),
+            ),
+            Local::now(),
+            String::from("second: commit\n"),
+        ))
     }
 }
 
