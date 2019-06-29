@@ -1,6 +1,6 @@
 use crate::objects::Hash;
 use crate::objects::Object;
-use chrono::offset::Local;
+use chrono::offset::{FixedOffset, TimeZone, Utc};
 use chrono::DateTime;
 use std::fs;
 use std::io::BufRead;
@@ -13,8 +13,8 @@ use std::str::FromStr;
 pub struct Commit {
     tree: Hash,
     parents: Vec<Hash>,
-    committer: (User, DateTime<Local>),
-    author: (User, DateTime<Local>),
+    committer: (User, DateTime<FixedOffset>),
+    author: (User, DateTime<FixedOffset>),
     message: String,
 }
 
@@ -23,7 +23,7 @@ impl Commit {
         tree: Hash,
         parents: Vec<Hash>,
         user: User,
-        date: DateTime<Local>,
+        date: DateTime<FixedOffset>,
         message: String,
     ) -> Commit {
         Commit {
@@ -40,16 +40,18 @@ impl Commit {
             Hash::from_str("0000000000000000000000000000000000000000").unwrap(),
             vec![],
             User::new(String::from(""), String::from("")),
-            Local::now(),
+            FixedOffset::east(0).timestamp_millis(0),
             String::from(""),
         )
     }
 
-    fn parse_user_date(data: &str) -> (User, DateTime<Local>) {
+    fn parse_user_date(data: &str) -> (User, DateTime<FixedOffset>) {
         let mut splitted = data.split_whitespace();
         let email = splitted.find(|&e| e.starts_with("<")).unwrap();
         let date = splitted.collect::<Vec<&str>>().join(" ");
-        let date = DateTime::parse_from_str(date.as_str(), "%s %z").unwrap();
+        let date = FixedOffset::east(0)
+            .datetime_from_str(date.as_str(), "%s %z")
+            .unwrap();
         let name = data
             .split_whitespace()
             .take_while(|&e| !e.starts_with("<"))
@@ -58,7 +60,7 @@ impl Commit {
 
         (
             User::new(name, String::from(&email[1..email.len() - 1])),
-            DateTime::<Local>::from(date),
+            date,
         )
     }
 }
@@ -183,7 +185,7 @@ mod tests {
                 String::from("Florian Amsallem"),
                 String::from("florian.amsallem@epita.fr"),
             ),
-            Local::now(),
+            FixedOffset::east(7200).timestamp(1561665499, 0),
             String::from("second: commit\n"),
         );
         let dump = commit.dump();

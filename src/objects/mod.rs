@@ -49,7 +49,8 @@ mod tests {
     use super::*;
     use crate::utils;
     use chrono::offset::TimeZone;
-    use chrono::Local;
+    use chrono::DateTime;
+    use chrono::FixedOffset;
     use commit::User;
     use std::str::FromStr;
 
@@ -109,7 +110,9 @@ mod tests {
     }
 
     #[test]
-    fn commit_dump() {
+    fn commit_hash() {
+        let date = FixedOffset::east(7200).timestamp(1561665499, 0);
+
         let mut commit = Commit::new(
             Hash::from_str("07f9cb6648d474785a4e08afe408633b1cf04d50").unwrap(),
             vec![Hash::from_str("bed08c07a4fb5d3be29024eac3b7efd7d8729e46").unwrap()],
@@ -117,7 +120,7 @@ mod tests {
                 String::from("Florian Amsallem"),
                 String::from("florian.amsallem@epita.fr"),
             ),
-            Local.timestamp(1561665499, 0),
+            date,
             String::from("second: commit\n"),
         );
         assert_eq!(
