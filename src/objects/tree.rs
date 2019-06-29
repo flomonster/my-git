@@ -1,5 +1,10 @@
 use crate::objects::Hash;
 use crate::objects::Object;
+use std::fs;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::Read;
+use std::str::FromStr;
 
 /// This enum contains all the entries in a Tree.
 pub enum TreeEntry {
@@ -71,8 +76,41 @@ impl Object for Tree {
         res
     }
 
-    fn from(data: Vec<u8>) -> Box<Tree> {
-        Box::new(Tree::new())
+    fn from(mut reader: BufReader<fs::File>) -> Box<Tree> {
+        let mut buff = vec![];
+        reader.read_until(0, &mut buff).unwrap();
+        assert!(std::str::from_utf8(&buff).unwrap().starts_with("tree "));
+        let mut res = Tree::new();
+        loop {
+            buff.clear();
+            if reader.read_until(0, &mut buff).unwrap() == 0 {
+                break;
+            }
+            buff.pop();
+            let desc: Vec<&str> = std::str::from_utf8(&buff).unwrap().split(' ').collect();
+            let mut hash = [0; 20];
+            reader.read_exact(&mut hash).unwrap();
+            let hash = hash
+                .iter()
+                .fold(String::new(), |res, e| res + &format!("{:02x}", e));
+            let hash = Hash::from_str(hash.as_str()).unwrap();
+            match desc[0] {
+                "100644" => {
+                    res.add_file(desc[1].to_string(), hash);
+                }
+                "100755" => {
+                    res.add_executable(desc[1].to_string(), hash);
+                }
+                "120000" => {
+                    res.add_symlink(desc[1].to_string(), hash);
+                }
+                "40000" => {
+                    res.add_directory(desc[1].to_string(), hash);
+                }
+                _ => panic!("Unexpected file description in a tree"),
+            }
+        }
+        Box::new(res)
     }
 }
 

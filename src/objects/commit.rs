@@ -2,6 +2,10 @@ use crate::objects::Hash;
 use crate::objects::Object;
 use chrono::offset::Local;
 use chrono::DateTime;
+use std::fs;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::Read;
 use std::str::FromStr;
 
 /// This object represents a version. It contains the root of the tree and
@@ -9,8 +13,8 @@ use std::str::FromStr;
 pub struct Commit {
     tree: Hash,
     parents: Vec<Hash>,
-    committer: (User, chrono::DateTime<Local>),
-    author: (User, chrono::DateTime<Local>),
+    committer: (User, DateTime<Local>),
+    author: (User, DateTime<Local>),
     message: String,
 }
 
@@ -29,6 +33,33 @@ impl Commit {
             author: (user, date),
             message,
         }
+    }
+
+    fn default() -> Commit {
+        Commit::new(
+            Hash::from_str("0000000000000000000000000000000000000000").unwrap(),
+            vec![],
+            User::new(String::from(""), String::from("")),
+            Local::now(),
+            String::from(""),
+        )
+    }
+
+    fn parse_user_date(data: &str) -> (User, DateTime<Local>) {
+        let mut splitted = data.split_whitespace();
+        let email = splitted.find(|&e| e.starts_with("<")).unwrap();
+        let date = splitted.collect::<Vec<&str>>().join(" ");
+        let date = DateTime::parse_from_str(date.as_str(), "%s %z").unwrap();
+        let name = data
+            .split_whitespace()
+            .take_while(|&e| !e.starts_with("<"))
+            .collect::<Vec<&str>>()
+            .join(" ");
+
+        (
+            User::new(name, String::from(&email[1..email.len() - 1])),
+            DateTime::<Local>::from(date),
+        )
     }
 }
 
@@ -84,17 +115,37 @@ impl Object for Commit {
         res
     }
 
-    fn from(data: Vec<u8>) -> Box<Commit> {
-        Box::new(Commit::new(
-            Hash::from_str("e3095e3fb2e3cbc0dea81d961650feda7f6448f7").unwrap(),
-            vec![Hash::from_str("f8ebe55b90a19ab7e5dea5ec51390948109623e5").unwrap()],
-            User::new(
-                String::from("Florian Amsallem"),
-                String::from("florian.amsallem@epita.fr"),
-            ),
-            Local::now(),
-            String::from("second: commit\n"),
-        ))
+    fn from(mut reader: BufReader<fs::File>) -> Box<Commit> {
+        let mut buff = vec![];
+        reader.read_until(0, &mut buff).unwrap();
+        assert!(std::str::from_utf8(&buff).unwrap().starts_with("commit "));
+
+        let mut res = Commit::default();
+        let mut buff = String::new();
+        while let Ok(_) = reader.read_line(&mut buff) {
+            if buff == "\n" {
+                break;
+            }
+            if buff.starts_with("tree ") {
+                let buff: Vec<&str> = buff.split(' ').collect();
+                res.tree = Hash::from_str(&buff[1][..40]).unwrap();
+            } else if buff.starts_with("parent ") {
+                let buff: Vec<&str> = buff.split(' ').collect();
+                res.parents.push(Hash::from_str(&buff[1][..40]).unwrap());
+            } else if buff.starts_with("author ") {
+                (res.author) = Commit::parse_user_date(&buff[7..]);
+            } else if buff.starts_with("committer ") {
+                (res.committer) = Commit::parse_user_date(&buff[10..]);
+            } else {
+                panic!("Unexpected content in commit object");
+            }
+
+            buff.clear();
+        }
+        let mut buff = vec![];
+        reader.read_to_end(&mut buff).unwrap();
+        res.message = std::str::from_utf8(&buff).unwrap().to_string();
+        Box::new(res)
     }
 }
 

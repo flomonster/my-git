@@ -19,5 +19,5 @@ pub fn find_repo() -> Result<PathBuf, Error> {
         }
     }
 
-    Ok(path)
+    Ok(path.join(".my_git"))
 }
