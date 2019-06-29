@@ -2,33 +2,38 @@ pub use blob::Blob;
 pub use commit::Commit;
 use sha1::{Digest, Sha1};
 use std::fs;
+use std::io::BufReader;
 use std::path::PathBuf;
 pub use tree::Tree;
+pub use tree::TreeEntry;
 
 mod blob;
 mod commit;
 mod tree;
 
-type Hash = Digest;
+pub type Hash = Digest;
 
 /// This represents Git object as blob, tree and commit
 pub trait Object {
     /// This function dump an object to his raw data
     fn dump(&self) -> Vec<u8>;
 
-    fn from(data: Vec<u8>) -> Box<Self>;
+    /// This function create a new object given buffer reader (including header)
+    ///
+    /// # Panics
+    ///
+    /// Panics if the header isn't valid.
+    fn from(reader: BufReader<fs::File>) -> Box<Self>;
 
+    /// This function load an object from a given hash dans repository path.
     fn load(repo: &PathBuf, hash: Hash) -> Box<Self> {
         // Compute the path to the object file
         let mut objects_path = repo.join("objects");
         objects_path.push(&hash.to_string()[..2]);
         objects_path.push(&hash.to_string()[2..]);
 
-        // Read the file
-        let data = fs::read(objects_path).unwrap();
-
         // Parse the data
-        Self::from(data)
+        Self::from(BufReader::new(fs::File::open(objects_path).unwrap()))
     }
 
     /// This function allow object to be hashed

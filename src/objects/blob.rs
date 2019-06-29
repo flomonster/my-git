@@ -1,4 +1,8 @@
 use crate::objects::Object;
+use std::fs;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::Read;
 
 /// This object carry the content of a file.
 pub struct Blob {
@@ -21,8 +25,15 @@ impl Object for Blob {
         res
     }
 
-    fn from(data: Vec<u8>) -> Box<Blob> {
-        Box::new(Blob::new(data))
+    fn from(mut reader: BufReader<fs::File>) -> Box<Blob> {
+        let mut buff = vec![];
+        reader.read_until(0, &mut buff).unwrap();
+        assert!(std::str::from_utf8(&buff[..5])
+            .unwrap()
+            .starts_with("blob "));
+        buff.clear();
+        reader.read_to_end(&mut buff).unwrap();
+        Box::new(Blob::new(buff))
     }
 }
 
