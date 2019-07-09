@@ -2,7 +2,7 @@ use clap::ArgMatches;
 use std::env;
 use std::error::Error;
 use std::fs;
-use std::fs::DirBuilder;
+use std::fs::{DirBuilder, File};
 
 /// This funciton initialize the git repository. It returns an error if
 /// something went wrong like a lake of rights
@@ -28,12 +28,14 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     dir_builder
         .recursive(true)
         .create(git_path.join("objects/info"))?;
-    dir_builder.create(git_path.join("objects/pack"))?;
     dir_builder.create(git_path.join("refs/heads"))?;
     dir_builder.create(git_path.join("refs/tags"))?;
 
     if !git_path.join("HEAD").is_file() {
-        fs::write(".my_git/HEAD", "ref: refs/heads/master\n")?
+        fs::write(git_path.join("HEAD"), "ref: refs/heads/master\n")?;
+    }
+    if !git_path.join("index").is_file() {
+        File::create(git_path.join("index"))?;
     }
 
     if !args.is_present("quiet") {
