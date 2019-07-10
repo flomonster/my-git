@@ -5,6 +5,14 @@ use std::path::PathBuf;
 /// This function return the path to the repository. If not in a my-git repository then return an
 /// error.
 pub fn find_repo() -> Result<PathBuf, Error> {
+    let path = find_root()?;
+
+    Ok(path.join(".my_git"))
+}
+
+/// This function return the path to root of the project repository. If not in an
+/// my-git repository then return an error.
+pub fn find_root() -> Result<PathBuf, Error> {
     let mut path = env::current_dir()?;
 
     while !path.join(".my_git").exists() {
@@ -19,5 +27,5 @@ pub fn find_repo() -> Result<PathBuf, Error> {
         }
     }
 
-    Ok(path.join(".my_git"))
+    Ok(path)
 }

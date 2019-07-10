@@ -6,6 +6,8 @@ use std::error::Error;
 
 mod init;
 mod objects;
+
+pub mod index;
 pub mod utils;
 
 /// This dispatch the main subcommand and return an error if something went
