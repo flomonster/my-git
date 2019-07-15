@@ -33,12 +33,27 @@ pub trait Object {
         objects_path.push(&hash.to_string()[2..]);
 
         // Parse the data
+        // TODO: Uncompress data with zlib falte
         Self::from(BufReader::new(fs::File::open(objects_path).unwrap()))
     }
 
     /// This function allow object to be hashed
     fn hash(&self) -> Hash {
         Sha1::from(self.dump()).digest()
+    }
+
+    /// Save the object
+    fn save(&self, repo_path: &PathBuf) {
+        let hash = self.hash().to_string();
+        let repo_path = &repo_path.join("objects").join(&hash[..2]);
+        if !repo_path.is_dir() {
+            fs::create_dir(repo_path).expect("Fail creating object directory");
+        }
+        let repo_path = repo_path.join(&hash[2..]);
+        if !repo_path.is_file() {
+            // TODO: Compress the dump with zlib flate
+            fs::write(repo_path, self.dump()).expect("Fail writing the object");
+        }
     }
 }
 
