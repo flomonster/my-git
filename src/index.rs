@@ -1,12 +1,15 @@
 use crate::objects::Hash;
+use crate::objects::{Blob, Object};
+use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::str::FromStr;
 
 pub struct Index {
-    list: Vec<(String, Hash)>,
+    entries: HashMap<String, Hash>,
 }
 
 impl Index {
@@ -14,30 +17,61 @@ impl Index {
     pub fn load(repo_path: &PathBuf) -> Index {
         let index = File::open(repo_path.join("index")).expect("No index found in the repository");
         let mut index = BufReader::new(index);
-        let mut list = vec![];
+        let mut entries = HashMap::new();
         loop {
             let mut line = String::new();
             match index.read_line(&mut line) {
+                Ok(0) => break,
                 Ok(_) => {
-                    let hash = line.split(' ').last().expect("No hash found in the entry");
+                    let hash = &line.split(' ').last().expect("No hash found in the entry")[..40];
                     let hash = Hash::from_str(hash).unwrap();
-                    let path = line.split(' ');
-                    let size = path.size_hint().0;
-                    let path: String = path.take(size - 1).collect();
-                    list.push((path, hash));
+                    let size = line.split(' ').count();
+                    let path: String = line.split(' ').take(size - 1).collect();
+                    entries.insert(path, hash);
                 }
-                Err(_) => break,
+                Err(e) => panic!(e),
             }
         }
-        Index { list }
+        Index { entries }
     }
 
     /// Save the current index to the repository
     pub fn save(&self, repo_path: &PathBuf) {
         let mut dump = String::new();
-        for entry in self.list.iter() {
-            dump.push_str(format!("{} {}", entry.0, entry.1).as_str());
+        for (path, hash) in self.entries.iter() {
+            dump.push_str(format!("{} {}\n", path, hash).as_str());
         }
         fs::write(repo_path.join("index"), dump).expect("Index writing failed");
+    }
+
+    pub fn add(
+        &mut self,
+        file: &PathBuf,
+        repo_path: &PathBuf,
+        root: &PathBuf,
+    ) -> Result<(), Error> {
+        if !file.is_file() {
+            // TODO: Handle directories
+            panic!("Addition of directories in the index is not handle yet...")
+        }
+        let content = fs::read(file)?;
+        let blob = Blob::new(content);
+        blob.save(&repo_path);
+
+        if !file.starts_with(root) {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "fatal: {}: '{}' is outside repository",
+                    file.to_str().unwrap(),
+                    file.to_str().unwrap()
+                ),
+            ));
+        }
+
+        let file: PathBuf = file.iter().skip(root.iter().count()).collect();
+        self.entries
+            .insert(String::from(file.to_str().unwrap()), blob.hash());
+        Ok(())
     }
 }

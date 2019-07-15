@@ -1,6 +1,6 @@
 use crate::objects::Hash;
 use crate::objects::Object;
-use chrono::offset::{FixedOffset, TimeZone, Utc};
+use chrono::offset::{FixedOffset, TimeZone};
 use chrono::DateTime;
 use std::fs;
 use std::io::BufRead;
