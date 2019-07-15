@@ -50,9 +50,12 @@ impl Index {
         repo_path: &PathBuf,
         root: &PathBuf,
     ) -> Result<(), Error> {
+        let file = &fs::canonicalize(file)?;
         if !file.is_file() {
-            // TODO: Handle directories
-            panic!("Addition of directories in the index is not handle yet...")
+            for file in fs::read_dir(file)? {
+                self.add(&file?.path(), repo_path, root)?;
+            }
+            return Ok(());
         }
         let content = fs::read(file)?;
         let blob = Blob::new(content);
