@@ -29,3 +29,14 @@ subcommands:
                 long: message
                 takes_value: true
                 required: true
+    - config:
+        about: Get and set repository or global options
+        args:
+            - global:
+                help: "For writing otpions: write to global ~/.my_gitconfig file rather than the repository .my_git/config."
+                long: global
+            - NAME:
+                help: Variable name to display or modify
+                required: true
+            - VALUE:
+                help: The value to set for the variable
