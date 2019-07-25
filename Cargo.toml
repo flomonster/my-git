@@ -8,3 +8,5 @@ edition = "2018"
 clap = { version = "2.33.0", features = ["yaml", "suggestions", "color"] }
 sha1 = "0.6.0"
 chrono = "0.4"
+dirs = "2.0.1"
+yaml-rust = "0.4.3"
