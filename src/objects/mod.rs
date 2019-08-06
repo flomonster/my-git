@@ -62,9 +62,7 @@ mod tests {
     use super::Blob;
     use super::Tree;
     use super::*;
-    use crate::utils;
     use chrono::offset::TimeZone;
-    use chrono::DateTime;
     use chrono::FixedOffset;
     use commit::User;
     use std::str::FromStr;
@@ -106,21 +104,23 @@ mod tests {
     #[test]
     fn tree_hash_multiple() {
         let mut tree = Tree::new();
-        tree.add_directory(
-            String::from("dir"),
-            Hash::from_str("828ed76b504d419d56d72df04c1bbb477ea69109").unwrap(),
-        )
-        .add_file(
+        let mut sub_tree = Tree::new();
+        sub_tree.add_file(
             String::from("lol"),
-            Hash::from_str("63cd04a52f5c8cb95686081b000223e968ed74f4").unwrap(),
-        )
-        .add_executable(
-            String::from("run.sh"),
-            Hash::from_str("5198cfd733f87f38ddfb400964c38c8ea238ea17").unwrap(),
+            Hash::from_str("9daeafb9864cf43055ae93beb0afd6c7d144bfa4").unwrap(),
         );
+        tree.add_directory(String::from("dir"), sub_tree)
+            .add_file(
+                String::from("lol"),
+                Hash::from_str("9daeafb9864cf43055ae93beb0afd6c7d144bfa4").unwrap(),
+            )
+            .add_executable(
+                String::from("run.sh"),
+                Hash::from_str("06206319b8e1c7d41d1b6cd5d7227ec8ef75822d").unwrap(),
+            );
         assert_eq!(
             tree.hash().to_string(),
-            "c9d0390d36023a52e95ca89ea06bbb2be7ab58ec"
+            "6239e26ab616cf842da4555f727a1b1b64d3868a"
         );
     }
 
@@ -128,7 +128,7 @@ mod tests {
     fn commit_hash() {
         let date = FixedOffset::east(7200).timestamp(1561665499, 0);
 
-        let mut commit = Commit::new(
+        let commit = Commit::new(
             Hash::from_str("07f9cb6648d474785a4e08afe408633b1cf04d50").unwrap(),
             vec![Hash::from_str("bed08c07a4fb5d3be29024eac3b7efd7d8729e46").unwrap()],
             User::new(

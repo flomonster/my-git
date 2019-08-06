@@ -5,6 +5,7 @@ use clap::App;
 use std::error::Error;
 
 mod add;
+mod commit;
 mod config;
 mod init;
 mod objects;
@@ -28,7 +29,7 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn Error>> {
     match matches.subcommand() {
         ("init", Some(matches)) => init::run(matches),
         ("add", Some(matches)) => add::run(matches),
-        ("commit", Some(_matches)) => Ok(()),
+        ("commit", Some(matches)) => commit::run(matches),
         ("config", Some(matches)) => config::run(matches),
         (_, None) => {
             app.print_help()?;

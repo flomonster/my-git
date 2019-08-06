@@ -1,53 +1,143 @@
+use crate::index::EntryType;
+use crate::index::Index;
 use crate::objects::Hash;
 use crate::objects::Object;
+use crate::utils;
+use std::collections::HashMap;
 use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 /// This enum contains all the entries in a Tree.
 pub enum TreeEntry {
-    File(String, Hash),
-    Executable(String, Hash),
-    Symlink(String, Hash),
-    Directory(String, Hash),
+    File(Hash),
+    Executable(Hash),
+    Symlink(Hash),
+    Directory(Tree),
 }
 
 /// This object carry trees and blobs. It represents the files in the
 /// repository.
 pub struct Tree {
-    entries: Vec<TreeEntry>,
+    entries: HashMap<String, TreeEntry>,
 }
 
 impl Tree {
     pub fn new() -> Tree {
-        Tree { entries: vec![] }
-    }
-
-    pub fn add(&mut self, entry: TreeEntry) -> &mut Tree {
-        self.entries.push(entry);
-        self
+        Tree {
+            entries: HashMap::new(),
+        }
     }
 
     pub fn add_file(&mut self, path: String, hash: Hash) -> &mut Tree {
-        self.entries.push(TreeEntry::File(path, hash));
+        self.entries.insert(path, TreeEntry::File(hash));
         self
     }
 
     pub fn add_executable(&mut self, path: String, hash: Hash) -> &mut Tree {
-        self.entries.push(TreeEntry::Executable(path, hash));
+        self.entries.insert(path, TreeEntry::Executable(hash));
         self
     }
 
     pub fn add_symlink(&mut self, path: String, hash: Hash) -> &mut Tree {
-        self.entries.push(TreeEntry::Symlink(path, hash));
+        self.entries.insert(path, TreeEntry::Symlink(hash));
         self
     }
 
-    pub fn add_directory(&mut self, path: String, hash: Hash) -> &mut Tree {
-        self.entries.push(TreeEntry::Directory(path, hash));
+    pub fn add_directory(&mut self, path: String, tree: Tree) -> &mut Tree {
+        self.entries.insert(path, TreeEntry::Directory(tree));
         self
+    }
+
+    /// Override save method
+    pub fn save(&self, repo_path: &PathBuf) {
+        // Save recursively all trees
+        for (_, entry) in self.entries.iter() {
+            if let TreeEntry::Directory(tree) = entry {
+                tree.save(repo_path)
+            }
+        }
+
+        let hash = self.hash().to_string();
+        let repo_path = &repo_path.join("objects").join(&hash[..2]);
+        if !repo_path.is_dir() {
+            fs::create_dir(repo_path).expect("Fail creating object directory");
+        }
+        let repo_path = repo_path.join(&hash[2..]);
+        if !repo_path.is_file() {
+            // TODO: Compress the dump with zlib flate
+            fs::write(repo_path, self.dump()).expect("Fail writing the object");
+        }
+    }
+
+    /// Given a path create the missing directories of the tree
+    fn create_tree(&mut self, path: &PathBuf) {
+        if let Some(root) = path.iter().next() {
+            let root = root.to_str().unwrap().to_string();
+            if let Some(entry) = self.entries.get_mut(&root) {
+                let path: PathBuf = path.iter().skip(1).collect();
+                if let TreeEntry::Directory(tree) = entry {
+                    tree.create_tree(&path);
+                } else {
+                    panic!("Path invalid for the given index");
+                }
+            } else {
+                self.add_directory(root, Tree::new());
+                self.create_tree(&path);
+            }
+        }
+    }
+
+    /// Given a path return the corresponding directory tree
+    fn get_mut_tree(&mut self, path: &PathBuf) -> &mut Self {
+        if let Some(root) = path.iter().next() {
+            let root = root.to_str().unwrap().to_string();
+            let path: PathBuf = path.iter().skip(1).collect();
+            if let Some(entry) = self.entries.get_mut(&root) {
+                if let TreeEntry::Directory(tree) = entry {
+                    return tree.get_mut_tree(&path);
+                }
+            }
+            panic!("Path invalid for the given index");
+        } else {
+            self
+        }
+    }
+
+    pub fn from(index: &Index) -> Self {
+        let mut root = Tree::new();
+        for (path, (entry_type, hash)) in index.entries.iter() {
+            // Compute the tree
+            let path = PathBuf::from(path);
+            root.create_tree(&path.parent().unwrap().to_path_buf());
+            let tree = root.get_mut_tree(&path.parent().unwrap().to_path_buf());
+
+            // Add the file
+            match entry_type {
+                EntryType::File => {
+                    tree.add_file(
+                        path.file_name().unwrap().to_str().unwrap().to_string(),
+                        *hash,
+                    );
+                }
+                EntryType::Executable => {
+                    tree.add_executable(
+                        path.file_name().unwrap().to_str().unwrap().to_string(),
+                        *hash,
+                    );
+                }
+                EntryType::Symlink => {
+                    tree.add_symlink(
+                        path.file_name().unwrap().to_str().unwrap().to_string(),
+                        *hash,
+                    );
+                }
+            }
+        }
+        root
     }
 }
 
@@ -55,12 +145,12 @@ impl Object for Tree {
     fn dump(&self) -> Vec<u8> {
         // Compute data for each entry
         let mut data = vec![];
-        for entry in self.entries.iter() {
-            let (mode, path, hash) = match entry {
-                TreeEntry::File(path, hash) => ("100644", path, hash),
-                TreeEntry::Executable(path, hash) => ("100755", path, hash),
-                TreeEntry::Symlink(path, hash) => ("120000", path, hash),
-                TreeEntry::Directory(path, hash) => ("40000", path, hash),
+        for (path, entry) in self.entries.iter() {
+            let (mode, hash) = match entry {
+                TreeEntry::File(hash) => ("100644", *hash),
+                TreeEntry::Executable(hash) => ("100755", *hash),
+                TreeEntry::Symlink(hash) => ("120000", *hash),
+                TreeEntry::Directory(tree) => ("40000", tree.hash()),
             };
             let entry = format!("{} {}\0", mode, path);
             data.append(&mut entry.into_bytes());
@@ -105,7 +195,8 @@ impl Object for Tree {
                     res.add_symlink(desc[1].to_string(), hash);
                 }
                 "40000" => {
-                    res.add_directory(desc[1].to_string(), hash);
+                    let tree = Tree::load(&utils::find_repo().unwrap(), hash);
+                    res.add_directory(desc[1].to_string(), *tree);
                 }
                 _ => panic!("Unexpected file description in a tree"),
             }
@@ -136,18 +227,20 @@ mod tests {
     #[test]
     fn tree_dump_multiple() {
         let mut tree = Tree::new();
-        tree.add_directory(
-            String::from("dir"),
-            Hash::from_str("828ed76b504d419d56d72df04c1bbb477ea69109").unwrap(),
-        )
-        .add_file(
+        let mut sub_tree = Tree::new();
+        sub_tree.add_file(
             String::from("lol"),
-            Hash::from_str("63cd04a52f5c8cb95686081b000223e968ed74f4").unwrap(),
-        )
-        .add_executable(
-            String::from("run.sh"),
-            Hash::from_str("5198cfd733f87f38ddfb400964c38c8ea238ea17").unwrap(),
+            Hash::from_str("9daeafb9864cf43055ae93beb0afd6c7d144bfa4").unwrap(),
         );
+        tree.add_directory(String::from("dir"), sub_tree)
+            .add_file(
+                String::from("lol"),
+                Hash::from_str("63cd04a52f5c8cb95686081b000223e968ed74f4").unwrap(),
+            )
+            .add_executable(
+                String::from("run.sh"),
+                Hash::from_str("5198cfd733f87f38ddfb400964c38c8ea238ea17").unwrap(),
+            );
         let dump = tree.dump();
         assert_eq!(dump.len(), 103);
         assert_eq!(std::str::from_utf8(&dump[0..8]).unwrap(), "tree 95\0");

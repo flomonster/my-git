@@ -178,7 +178,7 @@ mod tests {
 
     #[test]
     fn commit_dump() {
-        let mut commit = Commit::new(
+        let commit = Commit::new(
             Hash::from_str("e3095e3fb2e3cbc0dea81d961650feda7f6448f7").unwrap(),
             vec![Hash::from_str("f8ebe55b90a19ab7e5dea5ec51390948109623e5").unwrap()],
             User::new(

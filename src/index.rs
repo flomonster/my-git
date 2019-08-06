@@ -1,15 +1,44 @@
 use crate::objects::Hash;
 use crate::objects::{Blob, Object};
 use std::collections::HashMap;
+use std::fmt;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::io::{Error, ErrorKind};
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+pub enum EntryType {
+    File,
+    Executable,
+    Symlink,
+}
+
+impl fmt::Display for EntryType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            EntryType::File => write!(f, "f"),
+            EntryType::Executable => write!(f, "e"),
+            EntryType::Symlink => write!(f, "s"),
+        }
+    }
+}
+
+impl From<&str> for EntryType {
+    fn from(t: &str) -> Self {
+        match t {
+            "f" => EntryType::File,
+            "e" => EntryType::Executable,
+            "s" => EntryType::Symlink,
+            t => panic!("Couldn't parse {} into an EntryType", t),
+        }
+    }
+}
+
 pub struct Index {
-    entries: HashMap<String, Hash>,
+    pub entries: HashMap<String, (EntryType, Hash)>,
 }
 
 impl Index {
@@ -26,8 +55,10 @@ impl Index {
                     let hash = &line.split(' ').last().expect("No hash found in the entry")[..40];
                     let hash = Hash::from_str(hash).unwrap();
                     let size = line.split(' ').count();
+                    let entry_type = line.split(' ').skip(size - 2).next().unwrap();
+                    let entry_type = EntryType::from(entry_type);
                     let path: String = line.split(' ').take(size - 1).collect();
-                    entries.insert(path, hash);
+                    entries.insert(path, (entry_type, hash));
                 }
                 Err(e) => panic!(e),
             }
@@ -38,12 +69,13 @@ impl Index {
     /// Save the current index to the repository
     pub fn save(&self, repo_path: &PathBuf) {
         let mut dump = String::new();
-        for (path, hash) in self.entries.iter() {
-            dump.push_str(format!("{} {}\n", path, hash).as_str());
+        for (path, (entry_type, hash)) in self.entries.iter() {
+            dump.push_str(format!("{} {} {}\n", path, entry_type, hash).as_str());
         }
         fs::write(repo_path.join("index"), dump).expect("Index writing failed");
     }
 
+    /// Add a file to the index
     pub fn add(
         &mut self,
         file: &PathBuf,
@@ -73,8 +105,19 @@ impl Index {
         }
 
         let file: PathBuf = file.iter().skip(root.iter().count()).collect();
-        self.entries
-            .insert(String::from(file.to_str().unwrap()), blob.hash());
+        let metadata = fs::metadata(&file)?;
+        let file_type = if metadata.file_type().is_symlink() {
+            EntryType::Symlink
+        } else if metadata.permissions().mode() & 1 == 1 {
+            EntryType::Executable
+        } else {
+            EntryType::File
+        };
+
+        self.entries.insert(
+            String::from(file.to_str().unwrap()),
+            (file_type, blob.hash()),
+        );
         Ok(())
     }
 }
