@@ -3,9 +3,9 @@ use crate::utils;
 use clap::ArgMatches;
 use dirs::home_dir;
 use std::error::Error;
+use std::fmt;
+use std::fmt::Display;
 use std::fs;
-use std::io;
-use std::io::ErrorKind;
 use std::path::PathBuf;
 use yaml_rust::yaml::Hash;
 use yaml_rust::{Yaml, YamlEmitter, YamlLoader};
@@ -37,7 +37,7 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
 }
 
 pub struct Config {
-    user: User,
+    pub user: User,
 }
 
 impl Config {
@@ -118,43 +118,45 @@ impl Config {
             _ => (),
         }
     }
-    fn set(&mut self, key: &String, value: &String) -> Result<(), io::Error> {
+    fn set(&mut self, key: &String, value: &String) -> Result<(), ConfigError> {
         let mut key = key.split(".");
         match key.next() {
             Some("user") => match key.next() {
                 Some("name") => self.user.name = Some(value.clone()),
                 Some("email") => self.user.email = Some(value.clone()),
-                key => {
-                    return Err(io::Error::new(
-                        ErrorKind::NotFound,
-                        format!("error: user does not contain a section: {}", key.unwrap()),
+                Some(key) => {
+                    return Err(ConfigError::InvalidKey(
+                        String::from("user"),
+                        String::from(key),
                     ))
                 }
+                None => return Err(ConfigError::EmptyKey(String::from("user"))),
             },
             key => {
-                return Err(io::Error::new(
-                    ErrorKind::NotFound,
-                    format!("error: key does not contain a section: {}", key.unwrap()),
+                return Err(ConfigError::InvalidKey(
+                    String::from("config"),
+                    String::from(key.unwrap()),
                 ))
             }
         };
         Ok(())
     }
 
-    fn get(&self, key: &String) -> Result<Option<String>, io::Error> {
+    fn get(&self, key: &String) -> Result<Option<String>, ConfigError> {
         let mut key = key.split(".");
         match key.next() {
             Some("user") => match key.next() {
                 Some("name") => Ok(self.user.name.clone()),
                 Some("email") => Ok(self.user.email.clone()),
-                key => Err(io::Error::new(
-                    ErrorKind::NotFound,
-                    format!("error: user does not contain a section: {}", key.unwrap()),
+                Some(key) => Err(ConfigError::InvalidKey(
+                    String::from("user"),
+                    String::from(key),
                 )),
+                None => Err(ConfigError::EmptyKey(String::from("user"))),
             },
-            key => Err(io::Error::new(
-                ErrorKind::NotFound,
-                format!("error: key does not contain a section: {}", key.unwrap()),
+            key => Err(ConfigError::InvalidKey(
+                String::from("config"),
+                String::from(key.unwrap()),
             )),
         }
     }
@@ -196,8 +198,8 @@ impl Config {
 }
 
 pub struct User {
-    name: Option<String>,
-    email: Option<String>,
+    pub name: Option<String>,
+    pub email: Option<String>,
 }
 
 impl User {
@@ -222,3 +224,41 @@ impl User {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum ConfigError {
+    MissingAuthor(Option<String>),
+    InvalidKey(String, String),
+    EmptyKey(String),
+}
+
+impl Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ConfigError::MissingAuthor(email) => {
+                let email = match email {
+                    None => String::new(),
+                    Some(email) => email.clone(),
+                };
+                write!(
+                    f,
+                    "*** Please tell me who you are.\n\nRun\n\n  \
+                     git config --global user.email \"you@example.com\"\n  \
+                     git config --global user.name \"Your Name\"\n\n\
+                     to set your account's default identity.\n\
+                     Omit --global to set the identity only in this repository.\n\n\
+                     fatal: empty ident name (for <{}>) not allowed",
+                    email
+                )
+            }
+            ConfigError::InvalidKey(section, key) => {
+                write!(f, "error: {} does not contain a section: {}", section, key)
+            }
+            ConfigError::EmptyKey(section) => {
+                write!(f, "error: you must specify a section for {}", section)
+            }
+        }
+    }
+}
+
+impl Error for ConfigError {}
