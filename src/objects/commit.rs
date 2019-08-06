@@ -1,6 +1,6 @@
 use crate::objects::Hash;
-use crate::objects::Object;
-use chrono::offset::{FixedOffset, TimeZone};
+use crate::objects::{Object, Tree};
+use chrono::offset::{FixedOffset, Local, TimeZone};
 use chrono::DateTime;
 use std::fs;
 use std::io::BufRead;
@@ -25,7 +25,7 @@ impl Commit {
         user: User,
         date: DateTime<FixedOffset>,
         message: String,
-    ) -> Commit {
+    ) -> Self {
         Commit {
             tree,
             parents,
@@ -33,6 +33,19 @@ impl Commit {
             author: (user, date),
             message,
         }
+    }
+
+    pub fn create(
+        tree: &Tree,
+        parents: Vec<Self>,
+        user_name: String,
+        user_email: String,
+        message: String,
+    ) -> Self {
+        let parents: Vec<Hash> = parents.iter().map(|commit| commit.hash()).collect();
+        let user = User::new(user_name, user_email);
+        let date = DateTime::<FixedOffset>::from(Local::now());
+        Self::new(tree.hash(), parents, user, date, message)
     }
 
     fn default() -> Commit {

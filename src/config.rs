@@ -227,7 +227,7 @@ impl User {
 
 #[derive(Debug)]
 pub enum ConfigError {
-    MissingAuthor(Option<String>),
+    MissingAuthor(String),
     InvalidKey(String, String),
     EmptyKey(String),
 }
@@ -235,22 +235,16 @@ pub enum ConfigError {
 impl Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ConfigError::MissingAuthor(email) => {
-                let email = match email {
-                    None => String::new(),
-                    Some(email) => email.clone(),
-                };
-                write!(
-                    f,
-                    "*** Please tell me who you are.\n\nRun\n\n  \
-                     git config --global user.email \"you@example.com\"\n  \
-                     git config --global user.name \"Your Name\"\n\n\
-                     to set your account's default identity.\n\
-                     Omit --global to set the identity only in this repository.\n\n\
-                     fatal: empty ident name (for <{}>) not allowed",
-                    email
-                )
-            }
+            ConfigError::MissingAuthor(email) => write!(
+                f,
+                "*** Please tell me who you are.\n\nRun\n\n  \
+                 git config --global user.email \"you@example.com\"\n  \
+                 git config --global user.name \"Your Name\"\n\n\
+                 to set your account's default identity.\n\
+                 Omit --global to set the identity only in this repository.\n\n\
+                 fatal: empty ident name (for <{}>) not allowed",
+                email
+            ),
             ConfigError::InvalidKey(section, key) => {
                 write!(f, "error: {} does not contain a section: {}", section, key)
             }
