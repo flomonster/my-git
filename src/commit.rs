@@ -30,8 +30,11 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     // Save tree
     tree.save(&repo_path);
 
-    // TODO: Get head commit (parent)
-    let parent = vec![];
+    // Get head commit (parent)
+    let mut parent = vec![];
+    if let Some(commit) = utils::get_head(&repo_path) {
+        parent.push(commit);
+    }
 
     // Create commit object
     let message = String::from(args.value_of("msg").unwrap());
@@ -40,7 +43,7 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     // Save commit object
     commit.save(&repo_path);
 
-    // Change HEAD
+    // TODO: Change HEAD
 
     Ok(())
 }
