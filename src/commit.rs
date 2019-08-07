@@ -1,6 +1,7 @@
 use crate::config::{Config, ConfigError};
 use crate::index::Index;
 use crate::objects::{Commit, Object, Tree};
+use crate::refs;
 use crate::utils;
 use clap::ArgMatches;
 use std::error::Error;
@@ -32,7 +33,7 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
 
     // Get head commit (parent)
     let mut parent = vec![];
-    if let Some(commit) = utils::get_head(&repo_path) {
+    if let Some(commit) = refs::get_head(&repo_path) {
         parent.push(commit);
     }
 
@@ -43,7 +44,13 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     // Save commit object
     commit.save(&repo_path);
 
-    // TODO: Change HEAD
+    // Update HEAD
+    refs::update(
+        &repo_path,
+        &String::from("HEAD"),
+        &commit.hash().to_string(),
+    )
+    .expect("fatal: error while updating HEAD ref");
 
     Ok(())
 }
