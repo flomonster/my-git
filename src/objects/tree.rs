@@ -3,7 +3,7 @@ use crate::index::Index;
 use crate::objects::Hash;
 use crate::objects::Object;
 use crate::utils;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -22,13 +22,13 @@ pub enum TreeEntry {
 /// This object carry trees and blobs. It represents the files in the
 /// repository.
 pub struct Tree {
-    entries: HashMap<String, TreeEntry>,
+    entries: BTreeMap<String, TreeEntry>,
 }
 
 impl Tree {
     pub fn new() -> Tree {
         Tree {
-            entries: HashMap::new(),
+            entries: BTreeMap::new(),
         }
     }
 
