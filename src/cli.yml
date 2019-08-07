@@ -13,13 +13,15 @@ subcommands:
                 long: quiet
                 short: q
                 help: Only print error and warning messages; all other output will be suppressed.
+
     - add:
         about: Add file contents to the index
         args:
-            - PATH_SPEC:
-                help: Files to add content from.
+            - PATHSPEC:
+                help: Pattern used to limit paths in my_git commands.
                 required: true
                 multiple: true
+
     - commit:
         about: Record changes to the repository
         args:
@@ -29,6 +31,7 @@ subcommands:
                 long: message
                 takes_value: true
                 required: true
+
     - config:
         about: Get and set repository or global options
         args:
