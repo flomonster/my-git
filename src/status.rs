@@ -1,5 +1,5 @@
-use crate::index::Index;
-use crate::objects::{Object, Tree};
+use crate::index::{EntryType, Index};
+use crate::objects::{Blob, Object, Tree, TreeEntry};
 use crate::refs;
 use crate::utils;
 use clap::ArgMatches;
@@ -66,12 +66,52 @@ fn compute_untracked(
 }
 
 fn compute_tracked(
-    _status: &mut HashSet<Status>,
-    _path: &PathBuf,
-    _last_commit: &Tree,
-    _index: &Index,
+    status: &mut HashSet<Status>,
+    path: &PathBuf,
+    last_commit: &Tree,
+    index: &Index,
 ) -> Result<(), Box<Error>> {
-    // TODO: implementation
+    let root = utils::find_root()?;
+    let path = fs::canonicalize(&path)?;
+    for (entry_path, (entry_type, hash)) in index.entries.iter() {
+        let entry_path = PathBuf::from(&entry_path);
+        let full_path = root.join(&entry_path);
+
+        // Check if the file is part of path
+        if !full_path.starts_with(&path) {
+            continue;
+        }
+
+        // Staged files (new/modified)
+        if !last_commit.contains(&entry_path)? {
+            status.insert(Status::new("new", &full_path));
+        } else {
+            let entry = last_commit.get_entry(&entry_path).unwrap();
+            match (entry, entry_type) {
+                (TreeEntry::File(c_hash), EntryType::File) if hash == c_hash => (),
+                (TreeEntry::Executable(c_hash), EntryType::Executable) if hash == c_hash => (),
+                (TreeEntry::Symlink(c_hash), EntryType::Symlink) if hash == c_hash => (),
+                (TreeEntry::Directory(_), _) => {
+                    status.insert(Status::new("new", &full_path));
+                }
+                _ => {
+                    status.insert(Status::new("modifiedstaged", &full_path));
+                }
+            }
+        }
+
+        // Unstaged files (modified/deleted)
+        if !full_path.exists() || full_path.is_dir() {
+            status.insert(Status::new("deletenotstaged", &full_path));
+        } else {
+            // Compute blob
+            let blob = Blob::new(fs::read(&full_path)?);
+            let file_type = Index::get_file_type(&full_path);
+            if blob.hash() != *hash || file_type != *entry_type {
+                status.insert(Status::new("modifiednotstaged", &full_path));
+            }
+        }
+    }
     Ok(())
 }
 fn display(status: &HashSet<Status>) {

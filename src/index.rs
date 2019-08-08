@@ -11,6 +11,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+#[derive(Eq, PartialEq)]
 pub enum EntryType {
     File,
     Executable,
@@ -77,6 +78,18 @@ impl Index {
         fs::write(repo_path.join("index"), dump).expect("Index writing failed");
     }
 
+    /// Return the type of an existing file
+    pub fn get_file_type(path: &PathBuf) -> EntryType {
+        let metadata = fs::metadata(&path).unwrap();
+        if metadata.file_type().is_symlink() {
+            EntryType::Symlink
+        } else if metadata.permissions().mode() & 1 == 1 {
+            EntryType::Executable
+        } else {
+            EntryType::File
+        }
+    }
+
     /// Add a file to the index
     pub fn add(
         &mut self,
@@ -85,16 +98,8 @@ impl Index {
         root: &PathBuf,
     ) -> Result<(), Error> {
         let file = &fs::canonicalize(file)?;
-        if !file.is_file() {
-            for file in fs::read_dir(file)? {
-                self.add(&file?.path(), repo_path, root)?;
-            }
-            return Ok(());
-        }
-        let content = fs::read(file)?;
-        let blob = Blob::new(content);
-        blob.save(&repo_path);
 
+        // Check file is inside the repository
         if !file.starts_with(root) {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
@@ -106,16 +111,24 @@ impl Index {
             ));
         }
 
-        let metadata = fs::metadata(&file)?;
-        let file: PathBuf = file.iter().skip(root.iter().count()).collect();
-        let file_type = if metadata.file_type().is_symlink() {
-            EntryType::Symlink
-        } else if metadata.permissions().mode() & 1 == 1 {
-            EntryType::Executable
-        } else {
-            EntryType::File
-        };
+        // Call recursively in case of dir
+        if file.is_dir() {
+            for file in fs::read_dir(file)? {
+                self.add(&file?.path(), repo_path, root)?;
+            }
+            return Ok(());
+        }
 
+        // Compute and save blob
+        let content = fs::read(file)?;
+        let blob = Blob::new(content);
+        blob.save(&repo_path);
+
+        // Compute type
+        let file_type = Self::get_file_type(&file);
+
+        // Add to the index
+        let file: PathBuf = file.iter().skip(root.iter().count()).collect();
         self.entries.insert(
             String::from(file.to_str().unwrap()),
             (file_type, blob.hash()),

@@ -6,6 +6,7 @@ use crate::utils;
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs;
+use std::io;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
@@ -92,7 +93,7 @@ impl Tree {
         }
     }
 
-    /// Given a path return the corresponding directory tree
+    /// Given a path return the mutable corresponding directory tree
     fn get_mut_tree(&mut self, path: &PathBuf) -> &mut Self {
         if let Some(root) = path.iter().next() {
             let root = root.to_str().unwrap().to_string();
@@ -159,6 +160,27 @@ impl Tree {
         } else {
             Ok(true)
         }
+    }
+
+    /// Given a path return the corresponding entry
+    pub fn get_entry(&self, path: &PathBuf) -> Result<&TreeEntry, Box<Error>> {
+        if let Some(root) = path.iter().next() {
+            let root = root.to_str().unwrap().to_string();
+            let path: PathBuf = path.iter().skip(1).collect();
+            if let Some(entry) = self.entries.get(&root) {
+                if !path.clone().pop() {
+                    // Return wheter path is empty or not
+                    return Ok(entry);
+                }
+                if let TreeEntry::Directory(tree) = entry {
+                    return tree.get_entry(&path);
+                }
+            }
+        }
+        Err(Box::new(io::Error::new(
+            io::ErrorKind::NotFound,
+            "fatal: path invalid",
+        )))
     }
 }
 
