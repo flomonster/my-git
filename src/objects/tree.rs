@@ -4,6 +4,7 @@ use crate::objects::Hash;
 use crate::objects::Object;
 use crate::utils;
 use std::collections::BTreeMap;
+use std::error::Error;
 use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -22,7 +23,7 @@ pub enum TreeEntry {
 /// This object carry trees and blobs. It represents the files in the
 /// repository.
 pub struct Tree {
-    entries: BTreeMap<String, TreeEntry>,
+    pub entries: BTreeMap<String, TreeEntry>,
 }
 
 impl Tree {
@@ -138,6 +139,26 @@ impl Tree {
             }
         }
         root
+    }
+
+    /// Return whether the tree contains or not the given path
+    pub fn contains(&self, path: &PathBuf) -> Result<bool, Box<Error>> {
+        if let Some(root) = path.iter().next() {
+            let root = root.to_str().unwrap().to_string();
+            let mut path: PathBuf = path.iter().skip(1).collect();
+            if let Some(entry) = self.entries.get(&root) {
+                if let TreeEntry::Directory(tree) = entry {
+                    tree.contains(&path)
+                } else {
+                    // Return wheter path is empty or not
+                    Ok(!path.pop())
+                }
+            } else {
+                Ok(false)
+            }
+        } else {
+            Ok(true)
+        }
     }
 }
 

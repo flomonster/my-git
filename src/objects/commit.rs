@@ -11,11 +11,11 @@ use std::str::FromStr;
 /// This object represents a version. It contains the root of the tree and
 /// metadata about the author and committer.
 pub struct Commit {
-    tree: Hash,
-    parents: Vec<Hash>,
-    committer: (User, DateTime<FixedOffset>),
-    author: (User, DateTime<FixedOffset>),
-    message: String,
+    pub tree: Hash,
+    pub parents: Vec<Hash>,
+    pub committer: (User, DateTime<FixedOffset>),
+    pub author: (User, DateTime<FixedOffset>),
+    pub message: String,
 }
 
 impl Commit {

@@ -1,4 +1,5 @@
 use std::env;
+use std::fs;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 
@@ -28,4 +29,39 @@ pub fn find_root() -> Result<PathBuf, Error> {
     }
 
     Ok(path)
+}
+
+/// This function return relative the path to `dest`.
+pub fn find_relative_path(dest: &PathBuf) -> PathBuf {
+    let mut path = env::current_dir().unwrap();
+    let dest = fs::canonicalize(dest).unwrap();
+    let mut res = PathBuf::new();
+
+    // Case same directory
+    if dest == path {
+        res.push(".");
+        return res;
+    }
+
+    // Ascending directories
+    while !dest.starts_with(&path) {
+        res.push("..");
+        path.pop();
+    }
+
+    // Descending tree
+    while dest != path {
+        let filename = dest
+            .iter()
+            .skip(path.iter().count())
+            .next()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        res.push(&filename);
+        path.push(&filename);
+    }
+
+    res
 }

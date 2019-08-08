@@ -9,6 +9,7 @@ mod commit;
 mod config;
 mod init;
 mod objects;
+mod status;
 
 pub mod index;
 pub mod refs;
@@ -32,6 +33,7 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn Error>> {
         ("add", Some(matches)) => add::run(matches),
         ("commit", Some(matches)) => commit::run(matches),
         ("config", Some(matches)) => config::run(matches),
+        ("status", Some(matches)) => status::run(matches),
         (_, None) => {
             app.print_help()?;
             println!();
