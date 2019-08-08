@@ -34,7 +34,11 @@ pub fn find_root() -> Result<PathBuf, Error> {
 /// This function return relative the path to `dest`.
 pub fn find_relative_path(dest: &PathBuf) -> PathBuf {
     let mut path = env::current_dir().unwrap();
-    let dest = fs::canonicalize(dest).unwrap();
+    let dest = if !dest.is_absolute() {
+        fs::canonicalize(dest).unwrap()
+    } else {
+        dest.clone()
+    };
     let mut res = PathBuf::new();
 
     // Case same directory
