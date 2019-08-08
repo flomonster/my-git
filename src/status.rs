@@ -14,9 +14,9 @@ use std::path::PathBuf;
 enum Status {
     New(String),
     ModifiedStaged(String),
-    DeleteStaged(String),
+    DeletedStaged(String),
     ModifiedNotStaged(String),
-    DeleteNotStaged(String),
+    DeletedNotStaged(String),
     Untracked(String),
 }
 
@@ -34,8 +34,8 @@ impl Status {
             "new" => Status::New(path_str),
             "modifiedstaged" => Status::ModifiedStaged(path_str),
             "modifiednotstaged" => Status::ModifiedNotStaged(path_str),
-            "deletenotstaged" => Status::DeleteNotStaged(path_str),
-            "deletestaged" => Status::DeleteStaged(path_str),
+            "deletenotstaged" => Status::DeletedNotStaged(path_str),
+            "deletestaged" => Status::DeletedStaged(path_str),
             "untracked" => Status::Untracked(path_str),
             _ => panic!(format!("fatal: type '{}' unknown", type_)),
         }
@@ -112,6 +112,25 @@ fn compute_tracked(
             }
         }
     }
+
+    // Staged files (deleted)
+    let mut stack = vec![(PathBuf::new(), last_commit)];
+    while let Some((cur_path, tree)) = stack.pop() {
+        for (file_name, entry) in tree.entries.iter() {
+            let cur_path = cur_path.join(file_name);
+            let full_path = root.join(&cur_path);
+            // Check if the file is part of path
+            if !full_path.starts_with(&path) {
+                continue;
+            }
+
+            if let TreeEntry::Directory(tree) = entry {
+                stack.push((cur_path, tree));
+            } else if !index.contains(&cur_path)? {
+                status.insert(Status::new("deletestaged", &full_path));
+            }
+        }
+    }
     Ok(())
 }
 fn display(status: &HashSet<Status>) {
@@ -122,7 +141,7 @@ fn display(status: &HashSet<Status>) {
 
     // Staged files
     if status.iter().any(|s| match s {
-        Status::New(_) | Status::ModifiedStaged(_) | Status::DeleteStaged(_) => true,
+        Status::New(_) | Status::ModifiedStaged(_) | Status::DeletedStaged(_) => true,
         _ => false,
     }) {
         println!("Changes to be committed:\n");
@@ -130,7 +149,7 @@ fn display(status: &HashSet<Status>) {
             match status {
                 Status::New(path) => println!("\tnew file:   {}", path.green()),
                 Status::ModifiedStaged(path) => println!("\tmodified:   {}", path.green()),
-                Status::DeleteStaged(path) => println!("\tdelete:   {}", path.green()),
+                Status::DeletedStaged(path) => println!("\tdeleted:   {}", path.green()),
                 _ => (),
             }
         }
@@ -139,7 +158,7 @@ fn display(status: &HashSet<Status>) {
 
     // Unstaged files
     if status.iter().any(|s| match s {
-        Status::ModifiedNotStaged(_) | Status::DeleteNotStaged(_) => true,
+        Status::ModifiedNotStaged(_) | Status::DeletedNotStaged(_) => true,
         _ => false,
     }) {
         println!(
@@ -149,7 +168,7 @@ fn display(status: &HashSet<Status>) {
         for status in status.iter() {
             match status {
                 Status::ModifiedNotStaged(path) => println!("\tmodified:   {}", path.red()),
-                Status::DeleteNotStaged(path) => println!("\tdelete:   {}", path.red()),
+                Status::DeletedNotStaged(path) => println!("\tdelete:   {}", path.red()),
                 _ => (),
             }
         }
