@@ -57,7 +57,8 @@ impl Index {
                     let size = line.split(' ').count();
                     let entry_type = line.split(' ').skip(size - 2).next().unwrap();
                     let entry_type = EntryType::from(entry_type);
-                    let path: String = line.split(' ').take(size - 1).collect();
+                    let path: Vec<&str> = line.split(' ').take(size - 2).collect();
+                    let path = path.join(" ");
                     entries.insert(path, (entry_type, hash));
                 }
                 Err(e) => panic!(e),
@@ -104,8 +105,8 @@ impl Index {
             ));
         }
 
-        let file: PathBuf = file.iter().skip(root.iter().count()).collect();
         let metadata = fs::metadata(&file)?;
+        let file: PathBuf = file.iter().skip(root.iter().count()).collect();
         let file_type = if metadata.file_type().is_symlink() {
             EntryType::Symlink
         } else if metadata.permissions().mode() & 1 == 1 {
