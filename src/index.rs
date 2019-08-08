@@ -1,5 +1,6 @@
 use crate::objects::Hash;
 use crate::objects::{Blob, Object};
+use crate::utils;
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
@@ -120,5 +121,24 @@ impl Index {
             (file_type, blob.hash()),
         );
         Ok(())
+    }
+
+    /// Return whether the index contains or not the given path to file/directory
+    /// NOTE: if path is the root directory this function always return true.
+    pub fn contains(&self, path: &PathBuf) -> Result<bool, Box<Error>> {
+        let root = utils::find_root()?;
+        let real_path = fs::canonicalize(path).unwrap();
+
+        // Special case when the index is empty it should return true
+        if root == real_path {
+            return Ok(true);
+        }
+
+        let index_path: PathBuf = real_path.iter().skip(root.iter().count()).collect();
+
+        Ok(self
+            .entries
+            .iter()
+            .any(|(entry_path, _)| PathBuf::from(entry_path).starts_with(&index_path)))
     }
 }

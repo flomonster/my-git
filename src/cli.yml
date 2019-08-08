@@ -43,3 +43,10 @@ subcommands:
                 required: true
             - VALUE:
                 help: The value to set for the variable
+
+    - status:
+        about: Show the working tree status
+        args:
+            - pathspec:
+                help: Pattern used to limit paths in my_git commands.
+                multiple: true
