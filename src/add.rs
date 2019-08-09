@@ -12,9 +12,14 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let mut index = Index::load(&repo_path);
 
     for spec in args.values_of("PATHSPEC").unwrap() {
-        for entry in glob(spec)? {
-            if let Ok(file) = entry {
-                index.add(&PathBuf::from(file), &repo_path, &root)?;
+        if glob(spec)?.count() == 0 {
+            index.remove(&PathBuf::from(spec), &root)?;
+        } else {
+            for entry in glob(spec)? {
+                if let Ok(file) = entry {
+                    index.add(&PathBuf::from(&file), &repo_path, &root)?;
+                    index.remove(&PathBuf::from(&file), &root)?;
+                }
             }
         }
     }
