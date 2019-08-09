@@ -50,3 +50,6 @@ subcommands:
             - pathspec:
                 help: Pattern used to limit paths in my_git commands.
                 multiple: true
+
+    - log:
+        about: Show commit logs
