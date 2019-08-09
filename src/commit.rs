@@ -5,10 +5,9 @@ use crate::refs;
 use crate::utils;
 use clap::ArgMatches;
 use std::error::Error;
+use std::fmt;
 
 pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
-    // TODO: Check that files has been added
-
     // Load config
     let config = Config::load()?;
     let user_name = config.user.name;
@@ -37,6 +36,13 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
         parent.push(commit);
     }
 
+    // Nothing to commit
+    if (parent.is_empty() && tree.entries.is_empty())
+        || (!parent.is_empty() && tree.hash() == parent[0].hash())
+    {
+        return Err(Box::new(NothingToCommit {}));
+    }
+
     // Create commit object
     let message = String::from(args.value_of("msg").unwrap());
     let commit = Commit::create(&tree, parent, user_name.unwrap(), user_email, message);
@@ -54,3 +60,12 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
+
+#[derive(Debug)]
+struct NothingToCommit {}
+impl fmt::Display for NothingToCommit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "nothing to commit")
+    }
+}
+impl Error for NothingToCommit {}
