@@ -5,12 +5,12 @@ use crate::utils;
 use clap::ArgMatches;
 use colored::Colorize;
 use glob::glob;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Hash, Eq, PartialEq)]
+#[derive(Eq, PartialEq, PartialOrd, Ord)]
 enum Status {
     New(String),
     ModifiedStaged(String),
@@ -43,7 +43,7 @@ impl Status {
 }
 
 fn compute_untracked(
-    status: &mut HashSet<Status>,
+    status: &mut BTreeSet<Status>,
     path: &PathBuf,
     last_commit: &Tree,
     index: &Index,
@@ -66,7 +66,7 @@ fn compute_untracked(
 }
 
 fn compute_tracked(
-    status: &mut HashSet<Status>,
+    status: &mut BTreeSet<Status>,
     path: &PathBuf,
     last_commit: &Tree,
     index: &Index,
@@ -133,7 +133,7 @@ fn compute_tracked(
     }
     Ok(())
 }
-fn display(status: &HashSet<Status>) {
+fn display(status: &BTreeSet<Status>) {
     // Clean working tree
     if status.is_empty() {
         return println!("nothing to commit, working tree clean");
@@ -204,8 +204,7 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
         None => Tree::new(),
     };
 
-    // TODO: Use a BTreeSet would be better to get deterministic output
-    let mut status = HashSet::new();
+    let mut status = BTreeSet::new();
 
     if !args.is_present("pathspec") {
         compute_untracked(&mut status, &root, &last_commit, &index)?;
