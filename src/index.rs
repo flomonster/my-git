@@ -2,6 +2,7 @@ use crate::objects::Hash;
 use crate::objects::{Blob, Object};
 use crate::utils;
 use std::collections::HashMap;
+use std::env;
 use std::fmt;
 use std::fs;
 use std::fs::File;
@@ -11,7 +12,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Clone)]
 pub enum EntryType {
     File,
     Executable,
@@ -90,7 +91,7 @@ impl Index {
         }
     }
 
-    /// Add a file to the index
+    /// Add an existing file/directory to the index
     pub fn add(
         &mut self,
         file: &PathBuf,
@@ -133,6 +134,53 @@ impl Index {
             String::from(file.to_str().unwrap()),
             (file_type, blob.hash()),
         );
+        Ok(())
+    }
+
+    /// Remove file/directory from the index
+    /// TODO: Handle globing
+    pub fn remove(&mut self, file: &PathBuf, root: &PathBuf) -> Result<(), Error> {
+        // Get absolute path of file
+        let full_path = if file.is_absolute() {
+            file.clone()
+        } else {
+            let mut full_path = env::current_dir().unwrap();
+            for filename in file.iter() {
+                if filename == "." {
+                    continue;
+                }
+                if filename == ".." {
+                    full_path.pop();
+                } else {
+                    full_path.push(filename);
+                }
+            }
+            full_path
+        };
+
+        // Check file is inside the repository
+        if !full_path.starts_with(root) {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "fatal: {}: '{}' is outside repository",
+                    file.to_str().unwrap(),
+                    file.to_str().unwrap()
+                ),
+            ));
+        }
+
+        let index_path: PathBuf = full_path.iter().skip(root.iter().count()).collect();
+        for (entry_path, _) in self.entries.clone().iter() {
+            let path = PathBuf::from(entry_path);
+            if path.starts_with(&index_path) {
+                let path = root.join(path);
+                if !path.exists() {
+                    self.entries.remove(entry_path);
+                }
+            }
+        }
+
         Ok(())
     }
 
