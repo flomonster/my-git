@@ -8,6 +8,7 @@ mod add;
 mod commit;
 mod config;
 mod init;
+mod log;
 mod objects;
 mod status;
 
@@ -34,6 +35,7 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn Error>> {
         ("commit", Some(matches)) => commit::run(matches),
         ("config", Some(matches)) => config::run(matches),
         ("status", Some(matches)) => status::run(matches),
+        ("log", Some(matches)) => log::run(matches),
         (_, None) => {
             app.print_help()?;
             println!();

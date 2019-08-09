@@ -2,6 +2,8 @@ use crate::objects::Hash;
 use crate::objects::{Object, Tree};
 use chrono::offset::{FixedOffset, Local, TimeZone};
 use chrono::DateTime;
+use colored::Colorize;
+use std::fmt;
 use std::fs;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -161,6 +163,24 @@ impl Object for Commit {
         reader.read_to_end(&mut buff).unwrap();
         res.message = std::str::from_utf8(&buff).unwrap().to_string();
         Box::new(res)
+    }
+}
+
+impl fmt::Display for Commit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // TODO: Handle refs/branches
+        let commit = format!("commit {}", self.hash());
+        let (user, date) = &self.author;
+        let date = date.format("%a %b %e %T %Y");
+        write!(
+            f,
+            "{}\nAuthor: {} <{}>\nDate:   {}\n\n    {}\n",
+            commit.yellow(),
+            user.name,
+            user.email,
+            date,
+            self.message
+        )
     }
 }
 
