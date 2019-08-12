@@ -4,10 +4,7 @@ use chrono::offset::{FixedOffset, Local, TimeZone};
 use chrono::DateTime;
 use colored::Colorize;
 use std::fmt;
-use std::fs;
 use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Read;
 use std::str::FromStr;
 
 /// This object represents a version. It contains the root of the tree and
@@ -132,7 +129,7 @@ impl Object for Commit {
         res
     }
 
-    fn from(mut reader: BufReader<fs::File>) -> Box<Commit> {
+    fn from<R: BufRead>(mut reader: R) -> Box<Commit> {
         let mut buff = vec![];
         reader.read_until(0, &mut buff).unwrap();
         assert!(std::str::from_utf8(&buff).unwrap().starts_with("commit "));

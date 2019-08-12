@@ -3,13 +3,15 @@ use crate::index::Index;
 use crate::objects::Hash;
 use crate::objects::Object;
 use crate::utils;
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs;
+use std::fs::File;
 use std::io;
 use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Read;
+use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -70,8 +72,11 @@ impl Tree {
         }
         let repo_path = repo_path.join(&hash[2..]);
         if !repo_path.is_file() {
-            // TODO: Compress the dump with zlib flate
-            fs::write(repo_path, self.dump()).expect("Fail writing the object");
+            // Compress the dump with zlib flate
+            let file = File::create(repo_path).expect("Fail opening the object file");
+            let mut data = ZlibEncoder::new(file, Compression::default());
+            data.write_all(&self.dump())
+                .expect("Error writing data to the object file");
         }
     }
 
@@ -209,7 +214,7 @@ impl Object for Tree {
         res
     }
 
-    fn from(mut reader: BufReader<fs::File>) -> Box<Tree> {
+    fn from<R: BufRead>(mut reader: R) -> Box<Tree> {
         let mut buff = vec![];
         reader.read_until(0, &mut buff).unwrap();
         assert!(std::str::from_utf8(&buff).unwrap().starts_with("tree "));
