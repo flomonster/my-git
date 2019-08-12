@@ -1,8 +1,14 @@
 pub use blob::Blob;
 pub use commit::Commit;
+use flate2::bufread::ZlibDecoder;
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
 use sha1::{Digest, Sha1};
 use std::fs;
+use std::fs::File;
+use std::io::BufRead;
 use std::io::BufReader;
+use std::io::Write;
 use std::path::PathBuf;
 pub use tree::Tree;
 pub use tree::TreeEntry;
@@ -23,7 +29,7 @@ pub trait Object {
     /// # Panics
     ///
     /// Panics if the header isn't valid.
-    fn from(reader: BufReader<fs::File>) -> Box<Self>;
+    fn from<R: BufRead>(reader: R) -> Box<Self>;
 
     /// This function load an object from a given hash dans repository path.
     fn load(repo: &PathBuf, hash: Hash) -> Box<Self> {
@@ -32,9 +38,11 @@ pub trait Object {
         objects_path.push(&hash.to_string()[..2]);
         objects_path.push(&hash.to_string()[2..]);
 
-        // Parse the data
-        // TODO: Uncompress data with zlib falte
-        Self::from(BufReader::new(fs::File::open(objects_path).unwrap()))
+        // Decode and parse the data
+        let decoder = ZlibDecoder::new(BufReader::new(
+            fs::File::open(&objects_path).expect("Error decoding the object"),
+        ));
+        Self::from(BufReader::new(decoder))
     }
 
     /// This function allow object to be hashed
@@ -51,8 +59,11 @@ pub trait Object {
         }
         let repo_path = repo_path.join(&hash[2..]);
         if !repo_path.is_file() {
-            // TODO: Compress the dump with zlib flate
-            fs::write(repo_path, self.dump()).expect("Fail writing the object");
+            // Compress and write the object
+            let file = File::create(repo_path).expect("Fail opening the object file");
+            let mut data = ZlibEncoder::new(file, Compression::default());
+            data.write_all(&self.dump())
+                .expect("Error writing data to the object file");
         }
     }
 }
