@@ -5,6 +5,7 @@ use crate::utils;
 use clap::ArgMatches;
 use colored::Colorize;
 use glob::glob;
+use glob::Pattern;
 use std::collections::BTreeSet;
 use std::error::Error;
 use std::fs;
@@ -47,8 +48,12 @@ fn compute_untracked(
     path: &PathBuf,
     last_commit: &Tree,
     index: &Index,
+    ignored: &Vec<Pattern>,
 ) -> Result<(), Box<Error>> {
     // TODO: Not that simple should check that it could be track (need gitignore feature)
+    if utils::is_ignored(path, ignored)? {
+        return Ok(());
+    }
     if !index.contains(path)? && !last_commit.contains(path)? {
         status.insert(Status::new("untracked", &path));
         return Ok(());
@@ -59,7 +64,7 @@ fn compute_untracked(
         for entry in fs::read_dir(path).unwrap() {
             let file_name = entry.unwrap().file_name();
             let path = path.join(&file_name);
-            compute_untracked(status, &path, last_commit, index)?;
+            compute_untracked(status, &path, last_commit, index, &ignored)?;
         }
     }
     Ok(())
@@ -205,15 +210,16 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     };
 
     let mut status = BTreeSet::new();
+    let ignored = utils::ignored(&root)?;
 
     if !args.is_present("pathspec") {
-        compute_untracked(&mut status, &root, &last_commit, &index)?;
+        compute_untracked(&mut status, &root, &last_commit, &index, &ignored)?;
         compute_tracked(&mut status, &root, &last_commit, &index)?;
     } else {
         for spec in args.values_of("pathspec").unwrap() {
             for entry in glob(spec)? {
                 if let Ok(path) = entry {
-                    compute_untracked(&mut status, &path, &last_commit, &index)?;
+                    compute_untracked(&mut status, &path, &last_commit, &index, &ignored)?;
                     compute_tracked(&mut status, &path, &last_commit, &index)?;
                 }
             }
