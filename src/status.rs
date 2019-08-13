@@ -212,11 +212,11 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let mut status = BTreeSet::new();
     let ignored = utils::ignored(&root)?;
 
-    if !args.is_present("pathspec") {
+    if !args.is_present("PATHSPEC") {
         compute_untracked(&mut status, &root, &last_commit, &index, &ignored)?;
         compute_tracked(&mut status, &root, &last_commit, &index)?;
     } else {
-        for spec in args.values_of("pathspec").unwrap() {
+        for spec in args.values_of("PATHSPEC").unwrap() {
             for entry in glob(spec)? {
                 if let Ok(path) = entry {
                     compute_untracked(&mut status, &path, &last_commit, &index, &ignored)?;
