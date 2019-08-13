@@ -1,6 +1,7 @@
 use crate::objects::Hash;
 use crate::objects::{Blob, Object};
 use crate::utils;
+use glob::Pattern;
 use std::collections::HashMap;
 use std::env;
 use std::fmt;
@@ -94,30 +95,38 @@ impl Index {
     /// Add an existing file/directory to the index
     pub fn add(
         &mut self,
-        file: &PathBuf,
+        path: &PathBuf,
         repo_path: &PathBuf,
         root: &PathBuf,
-    ) -> Result<(), Error> {
-        let file = &fs::canonicalize(file)?;
+        force: bool,
+        ignored: &Vec<Pattern>,
+    ) -> Result<(Vec<PathBuf>), Box<Error>> {
+        let file = &fs::canonicalize(&path)?;
 
         // Check file is inside the repository
         if !file.starts_with(root) {
-            return Err(Error::new(
+            return Err(Box::new(Error::new(
                 ErrorKind::InvalidInput,
                 format!(
                     "fatal: {}: '{}' is outside repository",
                     file.to_str().unwrap(),
                     file.to_str().unwrap()
                 ),
-            ));
+            )));
+        }
+
+        // Check ignored if not a force add
+        if !force && utils::is_ignored(file, ignored)? && !self.contains(file)? {
+            return Ok(vec![path.clone()]);
         }
 
         // Call recursively in case of dir
         if file.is_dir() {
+            let mut failed = vec![];
             for file in fs::read_dir(file)? {
-                self.add(&file?.path(), repo_path, root)?;
+                failed.append(&mut self.add(&file?.path(), repo_path, root, force, ignored)?);
             }
-            return Ok(());
+            return Ok(failed);
         }
 
         // Compute and save blob
@@ -134,7 +143,7 @@ impl Index {
             String::from(file.to_str().unwrap()),
             (file_type, blob.hash()),
         );
-        Ok(())
+        Ok(vec![])
     }
 
     /// Remove file/directory from the index

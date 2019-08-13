@@ -21,6 +21,10 @@ subcommands:
                 help: Pattern used to limit paths in my_git commands.
                 required: true
                 multiple: true
+            - force:
+                short: f
+                long: force
+                help: Allow adding otherwise ignored files.
 
     - commit:
         about: Record changes to the repository
