@@ -1,5 +1,8 @@
+use glob::{Pattern, PatternError};
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 
@@ -68,4 +71,34 @@ pub fn find_relative_path(dest: &PathBuf) -> PathBuf {
     }
 
     res
+}
+
+/// Return the list of ignored pattern. Contains at least .my_git folder
+pub fn ignored(root: &PathBuf) -> Result<Vec<Pattern>, PatternError> {
+    let mut ignored = vec![Pattern::new(".my_git")?];
+    let ignore_file = root.join(".my_gitignore");
+    if ignore_file.is_file() {
+        let mut reader = BufReader::new(File::open(ignore_file).unwrap());
+        let mut buffer = String::new();
+        while reader.read_line(&mut buffer).unwrap() != 0 {
+            // Remove trailing \n
+            buffer.pop();
+            // Remove trailing / (for directories)
+            if buffer.ends_with("/") {
+                buffer.pop();
+            }
+            if !buffer.is_empty() {
+                ignored.push(Pattern::new(&buffer)?);
+                buffer.clear()
+            }
+        }
+    }
+    Ok(ignored)
+}
+
+/// Check if an existing path is ignored or not
+pub fn is_ignored(path: &PathBuf, ignored: &Vec<Pattern>) -> Result<bool, Error> {
+    let path = fs::canonicalize(path)?;
+    let path: PathBuf = path.iter().skip(find_root()?.iter().count()).collect();
+    Ok(ignored.iter().any(|pattern| pattern.matches_path(&path)))
 }
