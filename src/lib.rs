@@ -4,13 +4,8 @@
 use clap::App;
 use std::error::Error;
 
-mod add;
-mod commit;
-mod config;
-mod init;
-mod log;
-mod objects;
-mod status;
+pub mod cmd;
+pub mod objects;
 
 pub mod index;
 pub mod refs;
@@ -30,12 +25,13 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn Error>> {
     let matches = app.clone().get_matches();
 
     match matches.subcommand() {
-        ("init", Some(matches)) => init::run(matches),
-        ("add", Some(matches)) => add::run(matches),
-        ("commit", Some(matches)) => commit::run(matches),
-        ("config", Some(matches)) => config::run(matches),
-        ("status", Some(matches)) => status::run(matches),
-        ("log", Some(matches)) => log::run(matches),
+        ("add", Some(matches)) => cmd::add::run(matches),
+        ("branch", Some(matches)) => cmd::branch::run(matches),
+        ("commit", Some(matches)) => cmd::commit::run(matches),
+        ("config", Some(matches)) => cmd::config::run(matches),
+        ("init", Some(matches)) => cmd::init::run(matches),
+        ("log", Some(matches)) => cmd::log::run(matches),
+        ("status", Some(matches)) => cmd::status::run(matches),
         (_, None) => {
             app.print_help()?;
             println!();

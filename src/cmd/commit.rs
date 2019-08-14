@@ -1,4 +1,4 @@
-use crate::config::{Config, ConfigError};
+use crate::cmd::config::{Config, ConfigError};
 use crate::index::Index;
 use crate::objects::{Commit, Object, Tree};
 use crate::refs;
