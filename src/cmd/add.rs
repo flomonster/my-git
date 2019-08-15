@@ -36,24 +36,24 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     index.save(&repo_path);
 
     if !fails.is_empty() {
-        return Err(Box::new(FaileAddIgnored::new(fails)));
+        return Err(Box::new(FailAddIgnored::new(fails)));
     }
 
     Ok(())
 }
 
 #[derive(Debug)]
-struct FaileAddIgnored {
+struct FailAddIgnored {
     ignored: Vec<PathBuf>,
 }
 
-impl FaileAddIgnored {
+impl FailAddIgnored {
     pub fn new(ignored: Vec<PathBuf>) -> Self {
-        FaileAddIgnored { ignored }
+        FailAddIgnored { ignored }
     }
 }
 
-impl fmt::Display for FaileAddIgnored {
+impl fmt::Display for FailAddIgnored {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut ignored = String::new();
         for ignore in self.ignored.iter() {
@@ -68,4 +68,4 @@ impl fmt::Display for FaileAddIgnored {
         )
     }
 }
-impl Error for FaileAddIgnored {}
+impl Error for FailAddIgnored {}
