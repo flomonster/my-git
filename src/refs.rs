@@ -1,4 +1,5 @@
 use crate::objects::{Commit, Hash, Object};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Error;
 use std::path::PathBuf;
@@ -36,6 +37,40 @@ pub fn resolve(repo_path: &PathBuf, ref_: &String) -> Result<Hash, Error> {
 pub fn get_head(repo_path: &PathBuf) -> Option<Commit> {
     match resolve(repo_path, &String::from("HEAD")) {
         Ok(hash) => Some(*Commit::load(repo_path, hash)),
+        _ => None,
+    }
+}
+
+/// This function return the list of branches and their associated commits hash
+pub fn branches(repo_path: &PathBuf) -> HashMap<String, Hash> {
+    let mut branches = HashMap::new();
+    let path = repo_path.join("refs/heads");
+    for file in fs::read_dir(path).expect("Can't read in heads directory") {
+        let branch_name = file.unwrap().file_name().into_string().unwrap();
+        let hash = resolve(
+            repo_path,
+            &format!("refs/heads/{}", branch_name).to_string(),
+        );
+        if let Ok(hash) = hash {
+            branches.insert(branch_name, hash);
+        }
+    }
+    branches
+}
+
+/// This function return the current branch name and his associated commits hash
+pub fn current_branch(repo_path: &PathBuf) -> Option<(String, Hash)> {
+    let path = repo_path.join("HEAD");
+    let head = match get_head(repo_path) {
+        Some(commit) => commit.hash(),
+        None => return None,
+    };
+    match fs::read_to_string(path) {
+        Ok(branch) => {
+            let mut branch = branch[16..].to_string();
+            branch.pop();
+            Some((branch, head))
+        }
         _ => None,
     }
 }
