@@ -63,3 +63,13 @@ Untracked files:
 ```
 $ my_git commit -m "A message"
 ```
+
+### Use branches
+
+```
+$ my_git branch feature    # Create a new branch
+$ my_git branch            # Show all branches
+* master
+  feature
+$ my_git branch -d feature # Delete a branch
+```
