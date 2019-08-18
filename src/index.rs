@@ -103,7 +103,7 @@ impl Index {
     ) -> Result<(Vec<PathBuf>), Box<Error>> {
         let file = &fs::canonicalize(&path)?;
 
-        // Check file is inside the repository
+        // Check if the file is in the repository root
         if !file.starts_with(root) {
             return Err(Box::new(Error::new(
                 ErrorKind::InvalidInput,
@@ -113,6 +113,11 @@ impl Index {
                     file.to_str().unwrap()
                 ),
             )));
+        }
+
+        // Check if the file is in repository
+        if file.starts_with(&repo_path) {
+            return Ok(vec![]);
         }
 
         // Check ignored if not a force add

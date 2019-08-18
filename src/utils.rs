@@ -75,7 +75,6 @@ pub fn find_relative_path(dest: &PathBuf) -> PathBuf {
 
 /// Return the list of ignored pattern. Contains at least .my_git folder
 pub fn ignored(root: &PathBuf) -> Result<Vec<Pattern>, PatternError> {
-    // TODO: Should be handled separetly
     let mut ignored = vec![Pattern::new(".my_git")?];
     let ignore_file = root.join(".my_gitignore");
     if ignore_file.is_file() {
