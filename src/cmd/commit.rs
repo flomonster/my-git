@@ -55,6 +55,7 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
         &repo_path,
         &String::from("HEAD"),
         &commit.hash().to_string(),
+        true,
     )
     .expect("fatal: error while updating HEAD ref");
 

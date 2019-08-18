@@ -41,21 +41,42 @@ pub fn get_head(repo_path: &PathBuf) -> Option<Commit> {
     }
 }
 
-/// This function return the list of branches and their associated commits hash
-pub fn branches(repo_path: &PathBuf) -> HashMap<String, Hash> {
-    let mut branches = HashMap::new();
-    let path = repo_path.join("refs/heads");
+/// This function get all references given a path and adding a prefix
+fn branches_(
+    branches: &mut HashMap<String, Hash>,
+    repo_path: &PathBuf,
+    path: &PathBuf,
+    prefix: &String,
+) {
     for file in fs::read_dir(path).expect("Can't read in heads directory") {
-        let branch_name = file.unwrap().file_name().into_string().unwrap();
-        let hash = resolve(
-            repo_path,
-            &format!("refs/heads/{}", branch_name).to_string(),
-        );
-        if let Ok(hash) = hash {
-            branches.insert(branch_name, hash);
+        let file = file.unwrap();
+        let file_name = file.file_name().into_string().unwrap();
+        if file.path().is_dir() {
+            let prefix = format!("{}{}/", prefix, file_name);
+            branches_(branches, repo_path, &path.join(file_name), &prefix)
+        } else {
+            let branch_name = format!("{}{}", prefix, file_name);
+            let hash = resolve(
+                repo_path,
+                &format!("refs/heads/{}", branch_name).to_string(),
+            );
+            if let Ok(hash) = hash {
+                branches.insert(branch_name, hash);
+            }
         }
     }
-    branches
+}
+
+/// This function return the list of branches and their associated commits hash
+pub fn branches(repo_path: &PathBuf) -> HashMap<String, Hash> {
+    let mut res = HashMap::new();
+    branches_(
+        &mut res,
+        &repo_path,
+        &repo_path.join("refs/heads"),
+        &String::new(),
+    );
+    res
 }
 
 /// This function return the current branch name and his associated commits hash
@@ -65,21 +86,41 @@ pub fn current_branch(repo_path: &PathBuf) -> Option<(String, Hash)> {
         Some(commit) => commit.hash(),
         None => return None,
     };
-    match fs::read_to_string(path) {
+    match fs::read_to_string(&path) {
         Ok(branch) => {
-            let mut branch = branch[16..].to_string();
-            branch.pop();
-            Some((branch, head))
+            if branch.starts_with("ref:") {
+                let mut branch = branch[16..].to_string();
+                branch.pop();
+                Some((branch, head))
+            } else {
+                None
+            }
         }
         _ => None,
     }
 }
 
 /// This function update/create the object stored in a ref safely.
-/// It derefence the ref before update the value of it.
-pub fn update(repo_path: &PathBuf, ref_: &String, value: &String) -> Result<(), Error> {
-    let ref_ = deref(repo_path, ref_)?;
+/// If dereferenced is true the ref is dereferenced before updated.
+pub fn update(
+    repo_path: &PathBuf,
+    ref_: &String,
+    value: &String,
+    dereferenced: bool,
+) -> Result<(), Error> {
+    let ref_ = if dereferenced {
+        deref(repo_path, ref_)?
+    } else {
+        ref_.clone()
+    };
     let path = repo_path.join(ref_);
+
+    // Create potention subdirectories
+    let mut dir = path.clone();
+    dir.pop();
+    fs::create_dir_all(dir)?;
+
+    // Write the ref
     fs::write(path, format!("{}\n", value))?;
     Ok(())
 }
