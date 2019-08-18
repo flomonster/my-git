@@ -100,6 +100,20 @@ pub fn current_branch(repo_path: &PathBuf) -> Option<(String, Hash)> {
     }
 }
 
+/// This function removes a ref given its path
+pub fn remove_ref(path: &PathBuf) -> Result<(), Box<Error>> {
+    fs::remove_file(&path)?;
+    let mut path = path.clone();
+
+    // Remove parent directories if empty
+    loop {
+        path.pop();
+        if let Err(_) = fs::remove_dir(&path) {
+            return Ok(());
+        }
+    }
+}
+
 /// This function update/create the object stored in a ref safely.
 /// If dereferenced is true the ref is dereferenced before updated.
 pub fn update(

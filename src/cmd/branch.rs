@@ -67,7 +67,9 @@ pub fn delete_branch(
     if current_branch == *branch {
         return Err(Box::new(ErrorBranch::DeleteCurrentBranch(current_branch)));
     }
-    // TODO: Delete the branch
+    let ref_path = repo_path.join(format!("refs/heads/{}", branch));
+    refs::remove_ref(&ref_path)?;
+
     Ok(())
 }
 
