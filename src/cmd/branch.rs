@@ -112,7 +112,7 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
 }
 
 #[derive(Debug)]
-enum ErrorBranch {
+pub enum ErrorBranch {
     InvalidName(String),
     AlreadyExists(String),
     NoCommitYet,
