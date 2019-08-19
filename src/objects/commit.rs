@@ -5,6 +5,7 @@ use chrono::DateTime;
 use colored::Colorize;
 use std::fmt;
 use std::io::BufRead;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 /// This object represents a version. It contains the root of the tree and
@@ -74,6 +75,20 @@ impl Commit {
             User::new(name, String::from(&email[1..email.len() - 1])),
             date,
         )
+    }
+
+    /// This method check if the current commit is an ancestor of other
+    pub fn is_ancestor(&self, repo_path: &PathBuf, other: &Self) -> bool {
+        let mut stack = vec![other.hash()];
+        let hash = self.hash();
+        while let Some(commit) = stack.pop() {
+            if commit == hash {
+                return true;
+            }
+            let commit = Commit::load(repo_path, commit);
+            commit.parents.iter().for_each(|hash| stack.push(*hash));
+        }
+        false
     }
 }
 

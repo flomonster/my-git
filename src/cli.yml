@@ -67,3 +67,25 @@ subcommands:
                 help: Delete a branch.
                 long: delete
                 short: d
+            - delete-force:
+                help: Shortcut for --delete --force.
+                short: D
+            - force:
+                help: Reset an existing branch. In combination with -d (or --delete), allow deleting the branch irrespective of its merged status.
+                long: force
+                short: f
+            - quiet:
+                help: Be more quiet when deleting a branch, suppressing non-error messages.
+                long: quiet
+                short: q
+
+    - switch:
+        about: Switch branches
+        args:
+            - BRANCH:
+                help: Branch to checkout.
+                required: true
+            - create:
+                help: Create a branch.
+                long: create
+                short: c
