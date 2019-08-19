@@ -89,3 +89,7 @@ subcommands:
                 help: Create a branch.
                 long: create
                 short: c
+            - force-create:
+                help: Similar to --create except that if <BRANCH> already exists, it will be reset
+                long: force-create
+                short: C

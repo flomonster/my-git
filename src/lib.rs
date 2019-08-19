@@ -32,6 +32,7 @@ pub fn run(app: &mut App) -> Result<(), Box<dyn Error>> {
         ("init", Some(matches)) => cmd::init::run(matches),
         ("log", Some(matches)) => cmd::log::run(matches),
         ("status", Some(matches)) => cmd::status::run(matches),
+        ("switch", Some(matches)) => cmd::switch::run(matches),
         (_, None) => {
             app.print_help()?;
             println!();

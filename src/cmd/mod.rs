@@ -5,3 +5,4 @@ pub mod config;
 pub mod init;
 pub mod log;
 pub mod status;
+pub mod switch;
