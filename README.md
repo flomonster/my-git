@@ -1,5 +1,5 @@
 # My Git
-[![Build Status](https://travis-ci.org/flomonster/my-git.svg?branch=master)](https://travis-ci.org/flomonster/my-git)
+[![Actions Status](https://github.com/flomonster/my-git/workflows/Build/badge.svg)](https://github.com/flomonster/my-git/actions)
 
 ![My Git Logo](https://github.com/flomonster/my-git/blob/master/logo.png)
 
