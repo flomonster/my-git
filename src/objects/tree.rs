@@ -1,7 +1,5 @@
-use crate::index::EntryType;
-use crate::index::Index;
-use crate::objects::Hash;
-use crate::objects::Object;
+use crate::index::{EntryType, Index};
+use crate::objects::{Blob, Hash, Object};
 use crate::utils;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
@@ -9,13 +7,15 @@ use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs;
 use std::fs::File;
+use std::fs::Permissions;
 use std::io;
-use std::io::BufRead;
-use std::io::Write;
+use std::io::{BufRead, Write};
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::str::FromStr;
 
 /// This enum contains all the entries in a Tree.
+#[derive(Eq, PartialEq)]
 pub enum TreeEntry {
     File(Hash),
     Executable(Hash),
@@ -25,6 +25,7 @@ pub enum TreeEntry {
 
 /// This object carry trees and blobs. It represents the files in the
 /// repository.
+#[derive(Eq, PartialEq)]
 pub struct Tree {
     pub entries: BTreeMap<String, TreeEntry>,
 }
@@ -112,6 +113,78 @@ impl Tree {
         } else {
             self
         }
+    }
+
+    /// This function apply a new tree to file system and update the given index
+    /// Eg: To apply a commit `head.apply(repo_path, index, root, commit)`
+    pub fn apply(
+        &self,
+        repo_path: &PathBuf,
+        index: &mut Index,
+        path: &PathBuf,
+        new: &Self,
+    ) -> Result<(), Box<dyn Error>> {
+        for (filename, new_entry) in new.entries.iter() {
+            let path = path.join(filename);
+            // Update and create files of the new tree
+            match (self.entries.get(filename), new_entry) {
+                (Some(TreeEntry::Directory(cur_tree)), TreeEntry::Directory(new_tree)) => {
+                    if cur_tree != new_tree {
+                        cur_tree.apply(repo_path, index, &path, new_tree)?;
+                        continue;
+                    }
+                }
+                (Some(TreeEntry::Directory(_)), _) => {
+                    fs::remove_dir_all(&path)?;
+                    index.remove_entry(&path)?;
+                }
+                (Some(cur_entry), _) => {
+                    if cur_entry == new_entry {
+                        continue;
+                    } else if let TreeEntry::Directory(_) = new_entry {
+                        fs::remove_file(&path)?;
+                        index.remove_entry(&path)?;
+                    }
+                }
+                (None, _) => (),
+            }
+
+            // Apply new files / directories
+            let blob = match new_entry {
+                TreeEntry::Directory(new_tree) => {
+                    fs::create_dir(&path)?;
+                    Tree::new().apply(repo_path, index, &path, new_tree)?;
+                    continue;
+                }
+                TreeEntry::File(hash) | TreeEntry::Executable(hash) | TreeEntry::Symlink(hash) => {
+                    let blob = Blob::load(repo_path, *hash);
+                    fs::write(&path, &blob.data)?;
+                    blob
+                }
+            };
+            // Set the proper rights
+            if let TreeEntry::Executable(_) = new_entry {
+                fs::set_permissions(&path, Permissions::from_mode(0o755))?;
+            } else if let TreeEntry::Symlink(_) = new_entry {
+                fs::set_permissions(&path, Permissions::from_mode(0o777))?;
+            }
+            // Update the file to the index
+            index.update_entry(&path, &blob)?;
+        }
+
+        // Remove files / directories from old tree
+        for (filename, _) in self.entries.iter() {
+            if !new.entries.contains_key(filename) {
+                let path = path.join(filename);
+                index.remove_entry(&path)?;
+                if path.is_file() {
+                    fs::remove_file(&path)?;
+                } else if path.is_dir() {
+                    fs::remove_dir_all(&path)?;
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn from(index: &Index) -> Self {

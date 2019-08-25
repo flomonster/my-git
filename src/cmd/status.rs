@@ -173,7 +173,7 @@ fn display(status: &BTreeSet<Status>) {
         for status in status.iter() {
             match status {
                 Status::ModifiedNotStaged(path) => println!("\tmodified:   {}", path.red()),
-                Status::DeletedNotStaged(path) => println!("\tdelete:   {}", path.red()),
+                Status::DeletedNotStaged(path) => println!("\tdeleted:   {}", path.red()),
                 _ => (),
             }
         }

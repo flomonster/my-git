@@ -80,6 +80,7 @@ pub fn branches(repo_path: &PathBuf) -> HashMap<String, Hash> {
 }
 
 /// This function return the current branch name and his associated commits hash
+/// Return None if no commit or detached HEAD
 pub fn current_branch(repo_path: &PathBuf) -> Option<(String, Hash)> {
     let path = repo_path.join("HEAD");
     let head = match get_head(repo_path) {

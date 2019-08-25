@@ -3,7 +3,7 @@ use std::io::BufRead;
 
 /// This object carry the content of a file.
 pub struct Blob {
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 }
 
 impl Blob {

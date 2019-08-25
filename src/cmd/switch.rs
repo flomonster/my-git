@@ -1,5 +1,6 @@
 use crate::cmd::branch;
-use crate::objects::{Commit, Hash, Object};
+use crate::index::Index;
+use crate::objects::{Commit, Hash, Object, Tree};
 use crate::{refs, utils};
 use clap::ArgMatches;
 use std::collections::HashMap;
@@ -17,7 +18,23 @@ pub fn switch_branch(
         _ => return Err(Box::new(branch::ErrorBranch::NoBranchFound(branch.clone()))),
     };
 
-    // TODO: Checkout to the commit
+    // Check if nothing has to be done
+    if let Some((current_branch, _)) = refs::current_branch(&repo_path) {
+        if current_branch == *branch {
+            println!("Already on '{}'", branch);
+            return Ok(());
+        }
+    }
+
+    // Apply the commit to the fs
+    let commit_tree = Tree::load(repo_path, commit.tree);
+    let root = utils::find_root()?;
+    let head_tree = Tree::load(repo_path, refs::get_head(repo_path).unwrap().tree);
+    let mut index = Index::load(repo_path);
+    head_tree.apply(repo_path, &mut index, &root, &commit_tree)?;
+
+    // Save the new index
+    index.save(repo_path);
 
     // Update HEAD
     refs::update(
@@ -32,7 +49,7 @@ pub fn switch_branch(
 pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let repo_path = utils::find_repo()?;
     let branch = args.value_of("BRANCH").unwrap().to_string();
-    let branches = refs::branches(&repo_path);
+    let mut branches = refs::branches(&repo_path);
 
     // Create branch
     if args.is_present("create") || args.is_present("force-create") {
@@ -40,7 +57,7 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
             &repo_path,
             &branch,
             args.is_present("force-create"),
-            &branches,
+            &mut branches,
         )?;
     }
 

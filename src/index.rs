@@ -2,6 +2,7 @@ use crate::objects::Hash;
 use crate::objects::{Blob, Object};
 use crate::utils;
 use glob::Pattern;
+use path_abs::PathAbs;
 use std::collections::HashMap;
 use std::env;
 use std::fmt;
@@ -138,20 +139,39 @@ impl Index {
         let content = fs::read(file)?;
         let blob = Blob::new(content);
         blob.save(&repo_path);
+        self.update_entry(&file, &blob)?;
+        Ok(vec![])
+    }
 
+    /// This function add/update an entry to the index given the file path and its blob
+    pub fn update_entry(&mut self, path: &PathBuf, blob: &Blob) -> Result<(), Error> {
         // Compute type
-        let file_type = Self::get_file_type(&file);
+        let file_type = Self::get_file_type(path);
 
-        // Add to the index
-        let file: PathBuf = file.iter().skip(root.iter().count()).collect();
+        // Add the entry to the index
+        let root = utils::find_root()?;
+        let file: PathBuf = path.iter().skip(root.iter().count()).collect();
         self.entries.insert(
             String::from(file.to_str().unwrap()),
             (file_type, blob.hash()),
         );
-        Ok(vec![])
+        Ok(())
+    }
+
+    /// This function remove an entry to the index given a file/directory path
+    pub fn remove_entry(&mut self, path: &PathBuf) -> Result<(), Error> {
+        let root = utils::find_root()?;
+        let path: PathBuf = PathAbs::new(path).unwrap().into();
+        let file: PathBuf = path.iter().skip(root.iter().count()).collect();
+        self.entries.retain(|path, _| {
+            let path = PathBuf::from(path);
+            !path.starts_with(&file)
+        });
+        Ok(())
     }
 
     /// Remove file/directory from the index
+    /// NOTE: This function checks that the path doesn't exist before deletion
     /// TODO: Handle globing
     pub fn remove(&mut self, file: &PathBuf, root: &PathBuf) -> Result<(), Error> {
         // Get absolute path of file
@@ -202,7 +222,7 @@ impl Index {
     /// NOTE: if path is the root directory this function always return true.
     pub fn contains(&self, path: &PathBuf) -> Result<bool, Box<Error>> {
         let root = utils::find_root()?;
-        let real_path = fs::canonicalize(path).unwrap();
+        let real_path: PathBuf = PathAbs::new(path).unwrap().into();
 
         // Special case when the index is empty it should return true
         if root == real_path {
