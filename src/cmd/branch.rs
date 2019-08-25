@@ -25,11 +25,13 @@ fn display(repo_path: &PathBuf, branches: &HashMap<String, Hash>) {
     // TODO: Handle detached HEAD
 }
 
+/// This function create a new branch from HEAD.
+/// It add the branch to the branches given as argument.
 pub fn create_branch(
     repo_path: &PathBuf,
     branch: &String,
     force: bool,
-    branches: &HashMap<String, Hash>,
+    branches: &mut HashMap<String, Hash>,
 ) -> Result<(), Box<dyn Error>> {
     // Check the branch name validity
     let re = Regex::new(r"^[+\w\])(&!@$%'`]+(\.?/?[+\-\w\])(&!@$%'`]+)*$").unwrap();
@@ -49,6 +51,7 @@ pub fn create_branch(
                 &head.hash().to_string(),
                 false,
             )?;
+            branches.insert(branch.clone(), head.hash());
             Ok(())
         }
         None => Err(Box::new(ErrorBranch::NoCommitYet)),
@@ -90,7 +93,7 @@ pub fn delete_branch(
 
 pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
     let repo_path = utils::find_repo()?;
-    let branches = refs::branches(&repo_path);
+    let mut branches = refs::branches(&repo_path);
     let force = args.is_present("force") || args.is_present("delete-force");
     let delete = args.is_present("delete") || args.is_present("delete-force");
     let quiet = args.is_present("quiet");
@@ -103,7 +106,7 @@ pub fn run(args: &ArgMatches) -> Result<(), Box<dyn Error>> {
         (false, false) => display(&repo_path, &branches),
         (true, false) => {
             let branch = args.value_of("BRANCHNAME").unwrap();
-            create_branch(&repo_path, &branch.to_string(), force, &branches)?
+            create_branch(&repo_path, &branch.to_string(), force, &mut branches)?
         }
         _ => return Err(Box::new(ErrorBranch::BranchNameRequired)),
     }
