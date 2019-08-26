@@ -83,7 +83,7 @@ impl Index {
 
     /// Return the type of an existing file
     pub fn get_file_type(path: &PathBuf) -> EntryType {
-        let metadata = fs::metadata(&path).unwrap();
+        let metadata = fs::symlink_metadata(&path).unwrap();
         if metadata.file_type().is_symlink() {
             EntryType::Symlink
         } else if metadata.permissions().mode() & 1 == 1 {
@@ -102,7 +102,7 @@ impl Index {
         force: bool,
         ignored: &Vec<Pattern>,
     ) -> Result<(Vec<PathBuf>), Box<Error>> {
-        let file = &fs::canonicalize(&path)?;
+        let file: PathBuf = PathAbs::new(path).unwrap().into();
 
         // Check if the file is in the repository root
         if !file.starts_with(root) {
@@ -122,12 +122,13 @@ impl Index {
         }
 
         // Check ignored if not a force add
-        if !force && utils::is_ignored(file, ignored)? && !self.contains(file)? {
+        if !force && utils::is_ignored(&file, ignored)? && !self.contains(&file)? {
             return Ok(vec![path.clone()]);
         }
 
         // Call recursively in case of dir
-        if file.is_dir() {
+        let metadata = fs::symlink_metadata(&file).unwrap();
+        if metadata.is_dir() {
             let mut failed = vec![];
             for file in fs::read_dir(file)? {
                 failed.append(&mut self.add(&file?.path(), repo_path, root, force, ignored)?);
@@ -136,7 +137,16 @@ impl Index {
         }
 
         // Compute and save blob
-        let content = fs::read(file)?;
+        let content = if metadata.file_type().is_symlink() {
+            fs::read_link(&file)
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .as_bytes()
+                .to_vec()
+        } else {
+            fs::read(&file)?
+        };
         let blob = Blob::new(content);
         blob.save(&repo_path);
         self.update_entry(&file, &blob)?;
