@@ -19,6 +19,7 @@ cargo install --git https://github.com/flomonster/my-git.git
 ### Help
 
 The most useful command is `my_git --help` which show you all possible commands.
+You can also use it with a subcommand, for instance `my_git switch --help`.
 
 ### Config
 
@@ -71,5 +72,6 @@ $ my_git branch feature    # Create a new branch
 $ my_git branch            # Show all branches
 * master
   feature
-$ my_git branch -d feature # Delete a branch
+$ my_git switch feature    # Switch branches
+$ my_git branch -d master  # Delete a branch
 ```
