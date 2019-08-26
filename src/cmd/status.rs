@@ -106,11 +106,23 @@ fn compute_tracked(
         }
 
         // Unstaged files (modified/deleted)
-        if !full_path.exists() || full_path.is_dir() {
+        let metadata = fs::symlink_metadata(&full_path);
+        if !full_path.exists() || metadata.unwrap().is_dir() {
             status.insert(Status::new("deletenotstaged", &full_path));
         } else {
             // Compute blob
-            let blob = Blob::new(fs::read(&full_path)?);
+            let metadata = fs::symlink_metadata(&full_path).unwrap();
+            let content = if metadata.file_type().is_symlink() {
+                fs::read_link(&full_path)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .as_bytes()
+                    .to_vec()
+            } else {
+                fs::read(&full_path)?
+            };
+            let blob = Blob::new(content);
             let file_type = Index::get_file_type(&full_path);
             if blob.hash() != *hash || file_type != *entry_type {
                 status.insert(Status::new("modifiednotstaged", &full_path));
