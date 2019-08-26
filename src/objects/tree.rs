@@ -10,6 +10,7 @@ use std::fs::File;
 use std::fs::Permissions;
 use std::io;
 use std::io::{BufRead, Write};
+use std::os::unix;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -156,18 +157,24 @@ impl Tree {
                     Tree::new().apply(repo_path, index, &path, new_tree)?;
                     continue;
                 }
-                TreeEntry::File(hash) | TreeEntry::Executable(hash) | TreeEntry::Symlink(hash) => {
+                TreeEntry::File(hash) => {
                     let blob = Blob::load(repo_path, *hash);
                     fs::write(&path, &blob.data)?;
                     blob
                 }
+                TreeEntry::Executable(hash) => {
+                    let blob = Blob::load(repo_path, *hash);
+                    fs::write(&path, &blob.data)?;
+                    fs::set_permissions(&path, Permissions::from_mode(0o755))?;
+                    blob
+                }
+                TreeEntry::Symlink(hash) => {
+                    let blob = Blob::load(repo_path, *hash);
+                    unix::fs::symlink(std::str::from_utf8(&blob.data[..]).unwrap(), &path)?;
+                    blob
+                }
             };
-            // Set the proper rights
-            if let TreeEntry::Executable(_) = new_entry {
-                fs::set_permissions(&path, Permissions::from_mode(0o755))?;
-            } else if let TreeEntry::Symlink(_) = new_entry {
-                fs::set_permissions(&path, Permissions::from_mode(0o777))?;
-            }
+
             // Update the file to the index
             index.update_entry(&path, &blob)?;
         }
